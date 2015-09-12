@@ -771,24 +771,24 @@ function wp_refresh_post_nonces( $response, $data, $screen_id ) {
 		$received = $data['wp-refresh-post-nonces'];
 		$response['wp-refresh-post-nonces'] = array( 'check' => 1 );
 
-		if ( ! $post_id = absint( $received['post_id'] ) )
+		if ( ! $post_id = absint( $received['post_id'] ) ) {
 			return $response;
-
-		if ( ! current_user_can( 'edit_post', $post_id ) || empty( $received['post_nonce'] ) )
-			return $response;
-
-		if ( 2 === wp_verify_nonce( $received['post_nonce'], 'update-post_' . $post_id ) ) {
-			$response['wp-refresh-post-nonces'] = array(
-				'replace' => array(
-					'getpermalinknonce' => wp_create_nonce('getpermalink'),
-					'samplepermalinknonce' => wp_create_nonce('samplepermalink'),
-					'closedpostboxesnonce' => wp_create_nonce('closedpostboxes'),
-					'_ajax_linking_nonce' => wp_create_nonce( 'internal-linking' ),
-					'_wpnonce' => wp_create_nonce( 'update-post_' . $post_id ),
-				),
-				'heartbeatNonce' => wp_create_nonce( 'heartbeat-nonce' ),
-			);
 		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return $response;
+		}
+
+		$response['wp-refresh-post-nonces'] = array(
+			'replace' => array(
+				'getpermalinknonce' => wp_create_nonce('getpermalink'),
+				'samplepermalinknonce' => wp_create_nonce('samplepermalink'),
+				'closedpostboxesnonce' => wp_create_nonce('closedpostboxes'),
+				'_ajax_linking_nonce' => wp_create_nonce( 'internal-linking' ),
+				'_wpnonce' => wp_create_nonce( 'update-post_' . $post_id ),
+			),
+			'heartbeatNonce' => wp_create_nonce( 'heartbeat-nonce' ),
+		);
 	}
 
 	return $response;
@@ -865,23 +865,7 @@ function post_form_autocomplete_off() {
  * @since 4.2.0
  */
 function wp_admin_canonical_url() {
-	$removable_query_args = array(
-		'message', 'settings-updated', 'saved',
-		'update', 'updated', 'activated',
-		'activate', 'deactivate', 'locked',
-		'deleted', 'trashed', 'untrashed',
-		'enabled', 'disabled', 'skipped',
-		'spammed', 'unspammed',
-	);
-
-	/**
-	 * Filter the list of URL parameters to remove.
-	 *
-	 * @since 4.2.0
-	 *
-	 * @param array $removable_query_args An array of parameters to remove from the URL.
-	 */
-	$removable_query_args = apply_filters( 'removable_query_args', $removable_query_args );
+	$removable_query_args = wp_removable_query_args();
 
 	if ( empty( $removable_query_args ) ) {
 		return;

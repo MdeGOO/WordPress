@@ -6,11 +6,11 @@
 .menu-in-location,
 .menu-in-locations {
 	display: block;
-	color: #999;
 	font-weight: 600;
 	font-size: 10px;
 }
 
+#customize-controls .theme-location-set,
 #customize-controls .control-section .accordion-section-title:focus .menu-in-location,
 #customize-controls .control-section .accordion-section-title:hover .menu-in-location,
 #customize-controls .control-section .accordion-section-title:focus .menu-in-locations,
@@ -40,7 +40,7 @@
 }
 
 .wp-customizer .menu-item-handle .item-type {
-	padding: 1px 5px 0 15px;
+	padding: 1px 5px 0 21px;
 	float: left;
 	text-align: left;
 }
@@ -91,7 +91,14 @@
 }
 
 /* Menu-item reordering nav. */
-#customize-theme-controls button.reorder-toggle {
+.reordering .customize-control-nav_menu .reorder,
+.customize-control-nav_menu .reorder-done {
+	display: none;
+}
+
+.customize-control-nav_menu .reorder,
+.reordering .customize-control-nav_menu .reorder-done {
+	display: inline-block;
 	padding: 5px 8px;
 }
 
@@ -103,7 +110,7 @@
 	left: 0;
 }
 
-#customize-theme-controls .reordering .add-new-menu-item {
+.customize-control-nav_menu .reordering .add-new-menu-item {
 	opacity: 0.2;
 	pointer-events: none;
 	cursor: not-allowed;
@@ -147,27 +154,25 @@
 }
 
 .menus-move-down:before {
-	content: '\f347';
+	content: "\f347";
 }
 
 .menus-move-up:before {
-	content: '\f343';
+	content: "\f343";
 }
 
 .menus-move-left:before {
-	content: '\f341';
+	content: "\f345";
 }
 
 .menus-move-right:before {
-	content: '\f345';
+	content: "\f341";
 }
 
 .move-up-disabled .menus-move-up,
 .move-down-disabled .menus-move-down,
 .move-right-disabled .menus-move-right,
-.move-left-disabled .menus-move-left,
-.menu-item-depth-0 .menus-move-left,
-.menu-item-depth-10 .menus-move-right {
+.move-left-disabled .menus-move-left {
 	color: #d5d5d5 !important;
 	background-color: #fff !important;
 	cursor: default;
@@ -209,10 +214,8 @@
 	width: 30px;
 	height: 38px;
 	margin-left: 0 !important;
-	text-indent: 100%;
 	outline: none;
 	overflow: hidden;
-	white-space: nowrap;
 	cursor: pointer;
 }
 
@@ -222,36 +225,26 @@
 	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
-/* Duplicates `.nav-menus-php .item-edit:before {}` in common.css:2220. */
-.wp-customizer .menu-item .item-edit:before {
-	top: -1px;
-	left: 0;
-	content: '\f140';
-	border: none;
-	background: none;
+/* rework the arrow indicator implementation for NVDA bug same as #32715 */
+.wp-customizer .menu-item .item-edit .toggle-indicator {
+	display: inline-block;
+	font-size: 20px;
+	line-height: 1;
+}
+
+.wp-customizer .menu-item .item-edit .toggle-indicator:after {
+	content: "\f140";
 	font: normal 20px/1 dashicons;
+	color: #a0a5aa;
+	vertical-align: top;
 	speak: none;
-	display: block;
-	padding: 0;
-	text-indent: 0;
-	text-align: center;
-	position: relative;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	text-decoration: none !important;
 }
 
-.wp-customizer .menu-item.menu-item-edit-active .item-edit:before {
-	content: '\f142';
-}
-
-.wp-customizer .menu-item .item-edit:before {
-	line-height: 2;
-}
-
-/* Duplicates `.nav-menus-php .menu-item-edit-active .item-edit:before {}` in common.css:2271. */
-.wp-customizer .menu-item .menu-item-edit-active .item-edit:before {
-	content: '\f142';
+.wp-customizer .menu-item.menu-item-edit-active .item-edit .toggle-indicator:after {
+	content: "\f142";
 }
 
 .wp-customizer .menu-item-settings p.description {
@@ -299,10 +292,11 @@
 	border: none;
 	color: #555;
 	cursor: pointer;
+	margin: 0;
 	padding: 20px;
 	position: absolute;
-	left: 31px;
-	top: 4px;
+	left: 0;
+	top: 30px;
 }
 
 #customize-controls .customize-info .customize-help-toggle {
@@ -310,7 +304,7 @@
 }
 
 #customize-controls .customize-info .customize-help-toggle:before {
-	padding: 5px;
+	padding: 4px;
 }
 
 .customize-screen-options-toggle:hover,
@@ -326,8 +320,6 @@
 .customize-screen-options-toggle:focus,
 #customize-controls .customize-info .customize-help-toggle:focus {
 	outline: none;
-	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
-	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
 .customize-screen-options-toggle:before {
@@ -335,14 +327,22 @@
 	border: none;
 	content: "\f111";
 	display: block;
-	font: 20px/1 "dashicons";
+	font: 18px/1 dashicons;
 	padding: 5px;
 	text-align: center;
 	text-decoration: none !important;
 	text-indent: 0;
-	right: 5px;
+	right: 6px;
 	position: absolute;
-	top: 5px;
+	top: 6px;
+}
+
+.customize-screen-options-toggle:focus:before,
+#customize-controls .customize-info .customize-help-toggle:focus:before {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	-webkit-border-radius: 100%;
+	border-radius: 100%;
 }
 
 .wp-customizer #screen-options-wrap {
@@ -374,13 +374,6 @@
 	display: block;
 }
 
-
-/* Not exactly sure what broke this, or why it works without these styles in core. */
-.wp-customizer .wp-full-overlay a.collapse-sidebar {
-	position: fixed;
-	right: 0;
-}
-
 /* WARNING: The 20px factor is hard-coded in JS. */
 .menu-item-depth-0  { margin-right: 0;     }
 .menu-item-depth-1  { margin-right: 20px;  }
@@ -410,7 +403,6 @@
 .menu-item-depth-11 > .menu-item-bar { margin-left: 220px; }
 
 /* Submenu left margin. */
-/* @todo menu-item-transport seems entirely unused. */
 .menu-item-depth-0  .menu-item-transport { margin-right: 0;      }
 .menu-item-depth-1  .menu-item-transport { margin-right: -20px;  }
 .menu-item-depth-3  .menu-item-transport { margin-right: -60px;  }
@@ -469,7 +461,11 @@
 	border-color: #a0a5aa;
 }
 
-.control-section-nav_menu .menu ul.menu-item-transport dl {
+.menu-item-transport li.customize-control {
+	float: none;
+}
+
+.control-section-nav_menu .menu ul.menu-item-transport .menu-item-bar {
 	margin-top: 0;
 }
 
@@ -510,7 +506,7 @@
 	position: relative;
 	right: -2px;
 	top: -1px;
-	font: normal 20px/1 'dashicons';
+	font: normal 20px/1 dashicons;
 	vertical-align: middle;
 	-webkit-transition: all 0.2s;
 	transition: all 0.2s;
@@ -557,9 +553,18 @@
 	right: 5px;
 }
 
+.ie8 .menu-item-bar .item-delete:before {
+	top: -10px;
+}
+
 .menu-item-bar .item-delete:hover,
 .menu-item-bar .item-delete:focus {
 	color: #f00;
+}
+
+.menu-item-bar .item-delete:focus {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
 .adding-menu-items .menu-item-bar .item-edit {
@@ -576,21 +581,28 @@
 
 #available-menu-items {
 	position: absolute;
-	overflow: hidden;
 	top: 0;
 	bottom: 0;
 	right: -301px;
+	visibility: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	width: 300px;
 	margin: 0;
 	z-index: 4;
 	background: #eee;
-	-webkit-transition: all 0.2s;
-	transition: all 0.2s;
+	-webkit-transition: right .18s;
+	transition: right .18s;
 	border-left: 1px solid #ddd;
 }
 
-#available-menu-items.allow-scroll {
-	overflow-y: auto;
+#available-menu-items.opening {
+	overflow-y: hidden; /* avoid scrollbar jitter with animating heights */
+}
+
+#available-menu-items #available-menu-items-search.open {
+	height: 100%;
+	border-bottom: none;
 }
 
 #available-menu-items .accordion-section-title {
@@ -599,12 +611,39 @@
 	background: #fff;
 }
 
-#available-menu-items .open .accordion-section-title {
+#available-menu-items .open .accordion-section-title,
+#available-menu-items #available-menu-items-search .accordion-section-title {
 	background: #eee;
 }
 
-#available-menu-items .open .accordion-section-title:after {
-	content: '\f142';
+/* rework the arrow indicator implementation for NVDA bug see #32715 */
+#available-menu-items .accordion-section-title:after {
+	content: none !important;
+}
+
+#available-menu-items .accordion-section-title .toggle-indicator {
+	display: inline-block;
+	font-size: 20px;
+	line-height: 1;
+}
+
+#available-menu-items .accordion-section-title .toggle-indicator:after {
+	content: "\f140";
+	font: normal 20px/1 dashicons;
+	color: #a0a5aa;
+	vertical-align: top;
+	speak: none;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-decoration: none !important;
+}
+
+#available-menu-items .accordion-section-title:hover .toggle-indicator:after {
+	color: #777;
+}
+
+#available-menu-items .open .accordion-section-title .toggle-indicator:after {
+	content: "\f142";
 }
 
 #available-menu-items .accordion-section-content {
@@ -628,10 +667,11 @@ button.not-a-button {
 #available-menu-items .accordion-section-title button {
 	display: block;
 	width: 28px;
-	height: 32px;
+	height: 35px;
 	position: absolute;
 	top: 5px;
 	left: 5px;
+	cursor: pointer;
 }
 
 #available-menu-items .accordion-section-title button:focus {
@@ -639,14 +679,52 @@ button.not-a-button {
 	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
+#available-menu-items .accordion-section-title .no-items,
+#available-menu-items .cannot-expand .accordion-section-title .spinner,
+#available-menu-items .cannot-expand .accordion-section-title > button {
+	display: none;
+}
+
+#available-menu-items-search.cannot-expand .accordion-section-title .spinner {
+	display: block;
+}
+
+#available-menu-items .cannot-expand .accordion-section-title .no-items {
+	display: block;
+	color: #777;
+	font-weight: normal;
+	float: left;
+	margin-right: 5px;
+}
+
 #available-menu-items .accordion-section-content {
 	padding: 1px 15px 15px 15px;
+	margin: 0;
 	min-height: 120px;
 	max-height: 290px;
 }
 
+#available-menu-items #available-menu-items-search .accordion-section-content {
+	position: absolute;
+	right: 1px;
+	top: 60px; /* below title div / search input */
+	bottom: 0px; /* 100% height that still triggers lazy load */
+	max-height: none;
+	width: 100%;
+	padding: 1px 15px 15px;
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+}
+
+#available-menu-items .menu-item-tpl {
+	margin: 0;
+}
+
 #custom-menu-item-name.invalid,
-#custom-menu-item-url.invalid {
+#custom-menu-item-url.invalid,
+.menu-name-field.invalid,
+.menu-name-field.invalid:focus {
 	border: 1px solid #f00;
 }
 
@@ -715,11 +793,11 @@ button.not-a-button {
 }
 
 #available-menu-items .item-add:before {
-	content: "\f132";
+	content: "\f543";
 	font: normal 20px/1 dashicons;
 	position: relative;
 	right: 2px;
-	top: 4px;
+	top: 3px;
 }
 
 #available-menu-items .menu-item-handle.item-added .item-type,
@@ -739,9 +817,46 @@ button.not-a-button {
 	margin: 0 20px;
 }
 
+#available-menu-items-search .clear-results {
+	position: absolute;
+	top: 20px;
+	left: 20px;
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	color: #a00;
+	text-decoration: none;
+}
+
+#available-menu-items-search .clear-results,
+#available-menu-items-search.loading .clear-results.is-visible {
+	display: none;
+}
+
+#available-menu-items-search .clear-results.is-visible {
+	display: block;
+}
+
+#available-menu-items-search .clear-results:before {
+	content: "\f335";
+	font: normal 20px/1 dashicons;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+#available-menu-items-search .clear-results:hover,
+#available-menu-items-search .clear-results:focus {
+	color: #f00;
+}
+
+#available-menu-items-search .clear-results:focus {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+}
+
 #available-menu-items-search .spinner {
 	position: absolute;
-	top: 18px;
+	top: 20px;
 	margin: 0 !important;
 	left: 20px;
 }
@@ -782,6 +897,7 @@ button.not-a-button {
 
 body.adding-menu-items #available-menu-items {
 	right: 0;
+	visibility: visible;
 }
 
 body.adding-menu-items .wp-full-overlay-main {
@@ -924,12 +1040,22 @@ li.assigned-to-menu-location .add-new-menu-item {
 	display: none;
 }
 
+@media screen and ( max-width: 782px ) {
+	#available-menu-items #available-menu-items-search .accordion-section-content {
+		top: 63px;
+	}
+}
+
 @media screen and ( max-width: 640px ) {
 	body.adding-menu-items div#available-menu-items {
 		top: 46px;
 		right: 0;
 		z-index: 10;
 		width: 100%;
+	}
+
+	#available-menu-items #available-menu-items-search .accordion-section-content {
+		top: 133px;
 	}
 
 	#available-menu-items .customize-section-title {

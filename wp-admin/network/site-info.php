@@ -23,10 +23,10 @@ get_current_screen()->add_help_tab( array(
 	'title'   => __( 'Overview' ),
 	'content' =>
 		'<p>' . __( 'The menu is for editing information specific to individual sites, particularly if the admin area of a site is unavailable.' ) . '</p>' .
-		'<p>' . __( '<strong>Info</strong> - The domain and path are rarely edited as this can cause the site to not work properly. The Registered date and Last Updated date are displayed. Network admins can mark a site as archived, spam, deleted and mature, to remove from public listings or disable.' ) . '</p>' .
-		'<p>' . __( '<strong>Users</strong> - This displays the users associated with this site. You can also change their role, reset their password, or remove them from the site. Removing the user from the site does not remove the user from the network.' ) . '</p>' .
-		'<p>' . sprintf( __( '<strong>Themes</strong> - This area shows themes that are not already enabled across the network. Enabling a theme in this menu makes it accessible to this site. It does not activate the theme, but allows it to show in the site&#8217;s Appearance menu. To enable a theme for the entire network, see the <a href="%s">Network Themes</a> screen.' ), network_admin_url( 'themes.php' ) ) . '</p>' .
-		'<p>' . __( '<strong>Settings</strong> - This page shows a list of all settings associated with this site. Some are created by WordPress and others are created by plugins you activate. Note that some fields are grayed out and say Serialized Data. You cannot modify these values due to the way the setting is stored in the database.' ) . '</p>'
+		'<p>' . __( '<strong>Info</strong> &mdash; The site URL is rarely edited as this can cause the site to not work properly. The Registered date and Last Updated date are displayed. Network admins can mark a site as archived, spam, deleted and mature, to remove from public listings or disable.' ) . '</p>' .
+		'<p>' . __( '<strong>Users</strong> &mdash; This displays the users associated with this site. You can also change their role, reset their password, or remove them from the site. Removing the user from the site does not remove the user from the network.' ) . '</p>' .
+		'<p>' . sprintf( __( '<strong>Themes</strong> &mdash; This area shows themes that are not already enabled across the network. Enabling a theme in this menu makes it accessible to this site. It does not activate the theme, but allows it to show in the site&#8217;s Appearance menu. To enable a theme for the entire network, see the <a href="%s">Network Themes</a> screen.' ), network_admin_url( 'themes.php' ) ) . '</p>' .
+		'<p>' . __( '<strong>Settings</strong> &mdash; This page shows a list of all settings associated with this site. Some are created by WordPress and others are created by plugins you activate. Note that some fields are grayed out and say Serialized Data. You cannot modify these values due to the way the setting is stored in the database.' ) . '</p>'
 ) );
 
 get_current_screen()->set_help_sidebar(
@@ -42,6 +42,10 @@ if ( ! $id ) {
 }
 
 $details = get_blog_details( $id );
+if ( ! $details ) {
+	wp_die( __( 'The requested site does not exist.' ) );
+}
+
 if ( ! can_edit_network( $details->site_id ) ) {
 	wp_die( __( 'You do not have permission to access this page.' ), 403 );
 }
@@ -49,7 +53,7 @@ if ( ! can_edit_network( $details->site_id ) ) {
 $parsed_scheme = parse_url( $details->siteurl, PHP_URL_SCHEME );
 $is_main_site = is_main_site( $id );
 
-if ( isset( $_REQUEST['action'] ) && 'update-site' == $_REQUEST['action'] ) {
+if ( wp_validate_action( 'update-site' ) ) {
 	check_admin_referer( 'edit-site' );
 
 	switch_to_blog( $id );
@@ -64,8 +68,8 @@ if ( isset( $_REQUEST['action'] ) && 'update-site' == $_REQUEST['action'] ) {
 		// On the network's main site, don't allow the domain or path to change.
 		$blog_data['domain'] = $details->domain;
 		$blog_data['path'] = $details->path;
-	} elseif ( is_subdomain_install() ) {
-		// All parts of a URL can be updated for a subdomain configuration. We first
+	} else {
+		// For any other site, the scheme, domain, and path can all be changed. We first
 		// need to ensure a scheme has been provided, otherwise fallback to the existing.
 		$new_url_scheme = parse_url( $blog_data['url'], PHP_URL_SCHEME );
 
@@ -77,9 +81,6 @@ if ( isset( $_REQUEST['action'] ) && 'update-site' == $_REQUEST['action'] ) {
 		$blog_data['scheme'] = $update_parsed_url['scheme'];
 		$blog_data['domain'] = $update_parsed_url['host'];
 		$blog_data['path'] = $update_parsed_url['path'];
-	} else {
-		// Only the path can be updated for a subdirectory configuration, so capture existing domain.
-		$blog_data['domain'] = $details->domain;
 	}
 
 	$existing_details = get_blog_details( $id, false );
@@ -125,9 +126,7 @@ if ( isset( $_GET['update'] ) ) {
 	}
 }
 
-$site_url_no_http = preg_replace( '#^http(s)?://#', '', get_blogaddress_by_id( $id ) );
-$title_site_url_linked = sprintf( __( 'Edit Site: %s' ), '<a href="' . get_blogaddress_by_id( $id ) . '">' . $site_url_no_http . '</a>' );
-$title = sprintf( __( 'Edit Site: %s' ), $site_url_no_http );
+$title = sprintf( __( 'Edit Site: %s' ), esc_html( $details->blogname ) );
 
 $parent_file = 'sites.php';
 $submenu_file = 'sites.php';
@@ -137,7 +136,8 @@ require( ABSPATH . 'wp-admin/admin-header.php' );
 ?>
 
 <div class="wrap">
-<h2 id="edit-site"><?php echo $title_site_url_linked ?></h2>
+<h1 id="edit-site"><?php echo $title; ?></h1>
+<p class="edit-site-actions"><a href="<?php echo esc_url( get_home_url( $id, '/' ) ); ?>"><?php _e( 'Visit' ); ?></a> | <a href="<?php echo esc_url( get_admin_url( $id ) ); ?>"><?php _e( 'Dashboard' ); ?></a></p>
 <h3 class="nav-tab-wrapper">
 <?php
 $tabs = array(
@@ -171,25 +171,11 @@ if ( ! empty( $messages ) ) {
 			<td><?php echo esc_url( $details->siteurl ); ?></td>
 		</tr>
 		<?php
-		// In a subdomain configuration, the scheme, domain, and path can all be changed.
-		elseif ( is_subdomain_install() ) : ?>
+		// For any other site, the scheme, domain, and path can all be changed.
+		else : ?>
 		<tr class="form-field form-required">
 			<th scope="row"><?php _e( 'Site URL' ); ?></th>
 			<td><input name="blog[url]" type="text" id="url" value="<?php echo $parsed_scheme . '://' . esc_attr( $details->domain ) . esc_attr( $details->path ); ?>" /></td>
-		</tr>
-		<?php
-		// In a subdirectory configuration, only the path can be changed.
-		// Scheme and domain are inherited from the network.
-		else : ?>
-		<tr class="form-field">
-			<th scope="row"><?php _e( 'Domain' ); ?></th>
-			<td><?php echo $parsed_scheme . ':// ' . esc_attr( $details->domain ); ?></td>
-		</tr>
-		<tr class="form-field form-required">
-			<th scope="row"><label for="path"><?php _e( 'Path' ) ?></label></th>
-			<td>
-				<input name="blog[path]" type="text" id="path" value="<?php echo esc_attr( $details->path ) ?>" /><br />
-			</td>
 		</tr>
 		<?php endif; ?>
 

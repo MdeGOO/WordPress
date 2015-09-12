@@ -78,7 +78,7 @@ if ( !isset( $current_site ) || !isset( $current_blog ) ) {
 				$current_site = wp_get_network( $one_network );
 				wp_cache_add( 'current_network', $current_site, 'site-options' );
 			} elseif ( 0 === $wpdb->num_rows ) {
-				ms_not_installed();
+				ms_not_installed( $domain, $path );
 			}
 		}
 		if ( empty( $current_site ) ) {
@@ -86,7 +86,20 @@ if ( !isset( $current_site ) || !isset( $current_blog ) ) {
 		}
 
 		if ( empty( $current_site ) ) {
-			ms_not_installed();
+			/**
+			 * Fires when a network cannot be found based on the requested domain and path.
+			 *
+			 * At the time of this action, the only recourse is to redirect somewhere
+			 * and exit. If you want to declare a particular network, do so earlier.
+			 *
+			 * @since 4.4.0
+			 *
+			 * @param string $domain       The domain used to search for a network.
+			 * @param string $path         The path used to search for a path.
+			 */
+			do_action( 'ms_network_not_found', $domain, $path );
+
+			ms_not_installed( $domain, $path );
 		} elseif ( $path === $current_site->path ) {
 			$current_blog = get_site_by_path( $domain, $path );
 		} else {
@@ -111,7 +124,10 @@ if ( !isset( $current_site ) || !isset( $current_blog ) ) {
 
 	// No network has been found, bail.
 	if ( empty( $current_site ) ) {
-		ms_not_installed();
+		/** This action is documented in wp-includes/ms-settings.php */
+		do_action( 'ms_network_not_found', $domain, $path );
+
+		ms_not_installed( $domain, $path );
 	}
 
 	// @todo Investigate when exactly this can occur.
@@ -156,7 +172,7 @@ if ( !isset( $current_site ) || !isset( $current_blog ) ) {
 			 * it's no use redirecting back to ourselves -- it'll cause a loop.
 			 * As we couldn't find a site, we're simply not installed.
 			 */
-			ms_not_installed();
+			ms_not_installed( $domain, $path );
 		}
 
 		header( 'Location: ' . $destination );

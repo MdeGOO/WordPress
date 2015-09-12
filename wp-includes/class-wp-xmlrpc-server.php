@@ -276,9 +276,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * Check user's credentials. Deprecated.
 	 *
 	 * @since 1.5.0
-	 * @deprecated 2.8.0
-	 * @deprecated use wp_xmlrpc_server::login
-	 * @see wp_xmlrpc_server::login
+	 * @deprecated 2.8.0 Use wp_xmlrpc_server::login()
+	 * @see wp_xmlrpc_server::login()
 	 *
 	 * @param string $username User's username.
 	 * @param string $password User's password.
@@ -760,7 +759,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			'post_content'      => $post['post_content'],
 			'post_parent'       => strval( $post['post_parent'] ),
 			'post_mime_type'    => $post['post_mime_type'],
-			'link'              => post_permalink( $post['ID'] ),
+			'link'              => get_permalink( $post['ID'] ),
 			'guid'              => $post['guid'],
 			'menu_order'        => intval( $post['menu_order'] ),
 			'comment_status'    => $post['comment_status'],
@@ -930,7 +929,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	protected function _prepare_page( $page ) {
 		// Get all of the page content and link.
 		$full_page = get_extended( $page->post_content );
-		$link = post_permalink( $page->ID );
+		$link = get_permalink( $page->ID );
 
 		// Get info the page parent if there is one.
 		$parent_title = "";
@@ -1043,8 +1042,8 @@ class wp_xmlrpc_server extends IXR_Server {
 		 *
 		 * @since 3.4.0
 		 *
-		 * @param array  $_comment An array of prepared comment data.
-		 * @param object $comment  Comment object.
+		 * @param array      $_comment An array of prepared comment data.
+		 * @param WP_Comment $comment  Comment object.
 		 */
 		return apply_filters( 'xmlrpc_prepare_comment', $_comment, $comment );
 	}
@@ -1193,6 +1192,44 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
+	 * Encapsulate the logic for sticking a post
+	 * and determining if the user has permission to do so
+	 *
+	 * @since 4.3.0
+	 * @access private
+	 *
+	 * @param array $post_data
+	 * @param bool  $update
+	 * @return void|IXR_Error
+	 */
+	private function _toggle_sticky( $post_data, $update = false ) {
+		$post_type = get_post_type_object( $post_data['post_type'] );
+
+		// Private and password-protected posts cannot be stickied.
+		if ( 'private' === $post_data['post_status'] || ! empty( $post_data['post_password'] ) ) {
+			// Error if the client tried to stick the post, otherwise, silently unstick.
+			if ( ! empty( $post_data['sticky'] ) ) {
+				return new IXR_Error( 401, __( 'Sorry, you cannot stick a private post.' ) );
+			}
+
+			if ( $update ) {
+				unstick_post( $post_data['ID'] );
+			}
+		} elseif ( isset( $post_data['sticky'] ) )  {
+			if ( ! current_user_can( $post_type->cap->edit_others_posts ) ) {
+				return new IXR_Error( 401, __( 'Sorry, you are not allowed to stick this post.' ) );
+			}
+
+			$sticky = wp_validate_boolean( $post_data['sticky'] );
+			if ( $sticky ) {
+				stick_post( $post_data['ID'] );
+			} else {
+				unstick_post( $post_data['ID'] );
+			}
+		}
+	}
+
+	/**
 	 * Helper method for wp_newPost() and wp_editPost(), containing shared logic.
 	 *
 	 * @since 3.4.0
@@ -1287,20 +1324,9 @@ class wp_xmlrpc_server extends IXR_Server {
 		$post_ID = $post_data['ID'];
 
 		if ( $post_data['post_type'] == 'post' ) {
-			// Private and password-protected posts cannot be stickied.
-			if ( $post_data['post_status'] == 'private' || ! empty( $post_data['post_password'] ) ) {
-				// Error if the client tried to stick the post, otherwise, silently unstick.
-				if ( ! empty( $post_data['sticky'] ) )
-					return new IXR_Error( 401, __( 'Sorry, you cannot stick a private post.' ) );
-				if ( $update )
-					unstick_post( $post_ID );
-			} elseif ( isset( $post_data['sticky'] ) )  {
-				if ( ! current_user_can( $post_type->cap->edit_others_posts ) )
-					return new IXR_Error( 401, __( 'Sorry, you are not allowed to stick this post.' ) );
-				if ( $post_data['sticky'] )
-					stick_post( $post_ID );
-				else
-					unstick_post( $post_ID );
+			$error = $this->_toggle_sticky( $post_data, $update );
+			if ( $error ) {
+				return $error;
 			}
 		}
 
@@ -1707,7 +1733,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		}
 
 		if ( ! current_user_can( $post_type->cap->edit_posts ) )
-			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts in this post type' ));
+			return new IXR_Error( 401, __( 'You are not allowed to edit posts in this post type.' ));
 
 		$query['post_type'] = $post_type->name;
 
@@ -2385,7 +2411,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		do_action( 'xmlrpc_call', 'wp.getUsers' );
 
 		if ( ! current_user_can( 'list_users' ) )
-			return new IXR_Error( 401, __( 'Sorry, you cannot list users.' ) );
+			return new IXR_Error( 401, __( 'You are not allowed to browse users.' ) );
 
 		$query = array( 'fields' => 'all_with_meta' );
 
@@ -2747,15 +2773,19 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @return array|IXR_Error
 	 */
 	public function wp_editPage( $args ) {
-		// Items not escaped here will be escaped in editPost.
-		$page_id  = (int) $this->escape($args[1]);
-		$username = $this->escape($args[2]);
-		$password = $this->escape($args[3]);
+		// Items will be escaped in mw_editPost.
+		$page_id  = (int) $args[1];
+		$username = $args[2];
+		$password = $args[3];
 		$content  = $args[4];
 		$publish  = $args[5];
 
-		if ( !$user = $this->login($username, $password) )
+		$escaped_username = $this->escape( $username );
+		$escaped_password = $this->escape( $password );
+
+		if ( !$user = $this->login( $escaped_username, $escaped_password ) ) {
 			return $this->error;
+		}
 
 		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
 		do_action( 'xmlrpc_call', 'wp.editPage' );
@@ -2918,7 +2948,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$tags = array();
 
 		if ( $all_tags = get_tags() ) {
-			foreach( (array) $all_tags as $tag ) {
+			foreach ( (array) $all_tags as $tag ) {
 				$struct = array();
 				$struct['tag_id']			= $tag->term_id;
 				$struct['name']				= $tag->name;
@@ -3857,10 +3887,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
-	  * Retrieves a list of post formats used by the site
-	  *
-	  * @since 3.1.0
-	  *
+	 * Retrieves a list of post formats used by the site.
+	 *
+	 * @since 3.1.0
+	 *
 	 * @param array  $args {
 	 *     Method arguments. Note: arguments must be ordered as documented.
 	 *
@@ -3868,8 +3898,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *     @type string $username
 	 *     @type string $password
 	 * }
-	  * @return array|IXR_Error
-	  */
+	 * @return array|IXR_Error List of post formats, otherwise IXR_Error object.
+	 */
 	public function wp_getPostFormats( $args ) {
 		$this->escape( $args );
 
@@ -4018,7 +4048,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$struct = array();
 
-		foreach( $post_types as $post_type ) {
+		foreach ( $post_types as $post_type ) {
 			if ( ! current_user_can( $post_type->cap->edit_posts ) )
 				continue;
 
@@ -4805,7 +4835,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$comment_status = 'open';
 						break;
 					default:
-						$comment_status = get_option('default_comment_status');
+						$comment_status = get_default_comment_status( $post_type );
 						break;
 				}
 			} else {
@@ -4818,12 +4848,12 @@ class wp_xmlrpc_server extends IXR_Server {
 						$comment_status = 'open';
 						break;
 					default:
-						$comment_status = get_option('default_comment_status');
+						$comment_status = get_default_comment_status( $post_type );
 						break;
 				}
 			}
 		} else {
-			$comment_status = get_option('default_comment_status');
+			$comment_status = get_default_comment_status( $post_type );
 		}
 
 		if ( isset($content_struct['mt_allow_pings']) ) {
@@ -4836,7 +4866,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$ping_status = 'open';
 						break;
 					default:
-						$ping_status = get_option('default_ping_status');
+						$ping_status = get_default_comment_status( $post_type, 'pingback' );
 						break;
 				}
 			} else {
@@ -4848,12 +4878,12 @@ class wp_xmlrpc_server extends IXR_Server {
 						$ping_status = 'open';
 						break;
 					default:
-						$ping_status = get_option('default_ping_status');
+						$ping_status = get_default_comment_status( $post_type, 'pingback' );
 						break;
 				}
 			}
 		} else {
-			$ping_status = get_option('default_ping_status');
+			$ping_status = get_default_comment_status( $post_type, 'pingback' );
 		}
 
 		if ( $post_more )
@@ -4898,10 +4928,12 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// Only posts can be sticky
 		if ( $post_type == 'post' && isset( $content_struct['sticky'] ) ) {
-			if ( $content_struct['sticky'] == true )
-				stick_post( $post_ID );
-			elseif ( $content_struct['sticky'] == false )
-				unstick_post( $post_ID );
+			$data = $postdata;
+			$data['sticky'] = $content_struct['sticky'];
+			$error = $this->_toggle_sticky( $data );
+			if ( $error ) {
+				return $error;
+			}
 		}
 
 		if ( isset($content_struct['custom_fields']) )
@@ -5100,7 +5132,6 @@ class wp_xmlrpc_server extends IXR_Server {
 						break;
 					default:
 						return new IXR_Error( 401, __( 'Invalid post type' ) );
-						break;
 				}
 				$post_author = $content_struct['wp_author_id'];
 			}
@@ -5116,7 +5147,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$comment_status = 'open';
 						break;
 					default:
-						$comment_status = get_option('default_comment_status');
+						$comment_status = get_default_comment_status( $post_type );
 						break;
 				}
 			} else {
@@ -5129,7 +5160,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$comment_status = 'open';
 						break;
 					default:
-						$comment_status = get_option('default_comment_status');
+						$comment_status = get_default_comment_status( $post_type );
 						break;
 				}
 			}
@@ -5145,7 +5176,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$ping_status = 'open';
 						break;
 					default:
-						$ping_status = get_option('default_ping_status');
+						$ping_status = get_default_comment_status( $post_type, 'pingback' );
 						break;
 				}
 			} else {
@@ -5157,7 +5188,7 @@ class wp_xmlrpc_server extends IXR_Server {
 						$ping_status = 'open';
 						break;
 					default:
-						$ping_status = get_option('default_ping_status');
+						$ping_status = get_default_comment_status( $post_type, 'pingback' );
 						break;
 				}
 			}
@@ -5246,10 +5277,13 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// Only posts can be sticky
 		if ( $post_type == 'post' && isset( $content_struct['sticky'] ) ) {
-			if ( $content_struct['sticky'] == true )
-				stick_post( $post_ID );
-			elseif ( $content_struct['sticky'] == false )
-				unstick_post( $post_ID );
+			$data = $newpost;
+			$data['sticky'] = $content_struct['sticky'];
+			$data['post_type'] = 'post';
+			$error = $this->_toggle_sticky( $data, true );
+			if ( $error ) {
+				return $error;
+			}
 		}
 
 		if ( isset($content_struct['custom_fields']) )
@@ -5333,7 +5367,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 			$categories = array();
 			$catids = wp_get_post_categories($post_ID);
-			foreach($catids as $catid)
+			foreach ($catids as $catid)
 				$categories[] = get_cat_name($catid);
 
 			$tagnames = array();
@@ -5347,7 +5381,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			}
 
 			$post = get_extended($postdata['post_content']);
-			$link = post_permalink($postdata['ID']);
+			$link = get_permalink($postdata['ID']);
 
 			// Get the author info.
 			$author = get_userdata($postdata['post_author']);
@@ -5472,7 +5506,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 			$categories = array();
 			$catids = wp_get_post_categories($entry['ID']);
-			foreach( $catids as $catid )
+			foreach ( $catids as $catid )
 				$categories[] = get_cat_name($catid);
 
 			$tagnames = array();
@@ -5487,7 +5521,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			}
 
 			$post = get_extended($entry['post_content']);
-			$link = post_permalink($entry['ID']);
+			$link = get_permalink($entry['ID']);
 
 			// Get the post author info.
 			$author = get_userdata($entry['post_author']);

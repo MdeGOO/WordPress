@@ -502,7 +502,7 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 
 	// Set custom headers
 	if ( !empty( $headers ) ) {
-		foreach( (array) $headers as $name => $content ) {
+		foreach ( (array) $headers as $name => $content ) {
 			$phpmailer->AddCustomHeader( sprintf( '%1$s: %2$s', $name, $content ) );
 		}
 
@@ -1091,10 +1091,6 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	$adminurl = strtolower(admin_url());
 	$referer = strtolower(wp_get_referer());
 	$result = isset($_REQUEST[$query_arg]) ? wp_verify_nonce($_REQUEST[$query_arg], $action) : false;
-	if ( !$result && !(-1 == $action && strpos($referer, $adminurl) === 0) ) {
-		wp_nonce_ays($action);
-		die();
-	}
 
 	/**
 	 * Fires once the admin request has been validated or not.
@@ -1106,6 +1102,12 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	 *                          0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
 	 */
 	do_action( 'check_admin_referer', $action, $result );
+
+	if ( ! $result && ! ( -1 == $action && strpos( $referer, $adminurl ) === 0 ) ) {
+		wp_nonce_ays( $action );
+		die();
+	}
+
 	return $result;
 }
 endif;
@@ -1137,13 +1139,6 @@ function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
 
 	$result = wp_verify_nonce( $nonce, $action );
 
-	if ( $die && false === $result ) {
-		if ( defined( 'DOING_AJAX' ) && DOING_AJAX )
-			wp_die( -1 );
-		else
-			die( '-1' );
-	}
-
 	/**
 	 * Fires once the AJAX request has been validated or not.
 	 *
@@ -1154,6 +1149,14 @@ function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
 	 *                          0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
 	 */
 	do_action( 'check_ajax_referer', $action, $result );
+
+	if ( $die && false === $result ) {
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+			wp_die( -1 );
+		} else {
+			die( '-1' );
+		}
+	}
 
 	return $result;
 }
@@ -1230,7 +1233,7 @@ function wp_sanitize_redirect($location) {
 		){1,40}                              # ...one or more times
 		)/x';
 	$location = preg_replace_callback( $regex, '_wp_sanitize_utf8_in_redirect', $location );
-	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!*\[\]()]|i', '', $location);
+	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!*\[\]()@]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
 	// remove %0d and %0a from location
@@ -1276,8 +1279,8 @@ function wp_safe_redirect($location, $status = 302) {
 	 *
 	 * @since 4.3.0
 	 *
-	 * @param string $fallback_url	The fallback URL to use by default.
-	 * @param int    $status        The redirect status.
+	 * @param string $fallback_url The fallback URL to use by default.
+	 * @param int    $status       The redirect status.
 	 */
 	$location = wp_validate_redirect( $location, apply_filters( 'wp_safe_redirect_fallback', admin_url(), $status ) );
 
@@ -1359,7 +1362,7 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 	}
 
 	$comment = get_comment( $comment_id );
-	if ( empty( $comment ) )
+	if ( empty( $comment ) || empty( $comment->comment_post_ID ) )
 		return false;
 
 	$post    = get_post( $comment->comment_post_ID );
@@ -1460,7 +1463,7 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 			$notify_message  = sprintf( __( 'New comment on your post "%s"' ), $post->post_title ) . "\r\n";
 			/* translators: 1: comment author, 2: author IP, 3: author domain */
 			$notify_message .= sprintf( __( 'Author: %1$s (IP: %2$s, %3$s)' ), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
-			$notify_message .= sprintf( __( 'E-mail: %s' ), $comment->comment_author_email ) . "\r\n";
+			$notify_message .= sprintf( __( 'Email: %s' ), $comment->comment_author_email ) . "\r\n";
 			$notify_message .= sprintf( __( 'URL: %s' ), $comment->comment_author_url ) . "\r\n";
 			$notify_message .= sprintf( __('Comment: %s' ), "\r\n" . $comment->comment_content ) . "\r\n\r\n";
 			$notify_message .= __( 'You can see all comments on this post here:' ) . "\r\n";
@@ -1469,7 +1472,7 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 			break;
 	}
 	$notify_message .= get_permalink($comment->comment_post_ID) . "#comments\r\n\r\n";
-	$notify_message .= sprintf( __('Permalink: %s'), get_comment_link( $comment_id ) ) . "\r\n";
+	$notify_message .= sprintf( __('Permalink: %s'), get_comment_link( $comment ) ) . "\r\n";
 
 	if ( user_can( $post->post_author, 'edit_comment', $comment_id ) ) {
 		if ( EMPTY_TRASH_DAYS )
@@ -1590,7 +1593,7 @@ function wp_notify_moderator($comment_id) {
 			$notify_message  = sprintf( __('A new comment on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
 			$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
 			$notify_message .= sprintf( __( 'Author: %1$s (IP: %2$s, %3$s)' ), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
-			$notify_message .= sprintf( __( 'E-mail: %s' ), $comment->comment_author_email ) . "\r\n";
+			$notify_message .= sprintf( __( 'Email: %s' ), $comment->comment_author_email ) . "\r\n";
 			$notify_message .= sprintf( __( 'URL: %s' ), $comment->comment_author_url ) . "\r\n";
 			$notify_message .= sprintf( __( 'Comment: %s' ), "\r\n" . $comment->comment_content ) . "\r\n\r\n";
 			break;
@@ -1686,11 +1689,18 @@ if ( !function_exists('wp_new_user_notification') ) :
  * A new user registration notification is also sent to admin email.
  *
  * @since 2.0.0
+ * @since 4.3.0 The `$plaintext_pass` parameter was changed to `$notify`.
  *
- * @param int    $user_id        User ID.
- * @param string $plaintext_pass Optional. The user's plaintext password. Default empty.
+ * @global wpdb         $wpdb      WordPress database object for queries.
+ * @global PasswordHash $wp_hasher Portable PHP password hashing framework instance.
+ *
+ * @param int    $user_id User ID.
+ * @param string $notify  Optional. Type of notification that should happen. Accepts 'admin' or an empty
+ *                        string (admin only), or 'both' (admin and user). The empty string value was kept
+ *                        for backward-compatibility purposes with the renamed parameter. Default empty.
  */
-function wp_new_user_notification($user_id, $plaintext_pass = '') {
+function wp_new_user_notification( $user_id, $notify = '' ) {
+	global $wpdb, $wp_hasher;
 	$user = get_userdata( $user_id );
 
 	// The blogname option is escaped with esc_html on the way into the database in sanitize_option
@@ -1699,19 +1709,35 @@ function wp_new_user_notification($user_id, $plaintext_pass = '') {
 
 	$message  = sprintf(__('New user registration on your site %s:'), $blogname) . "\r\n\r\n";
 	$message .= sprintf(__('Username: %s'), $user->user_login) . "\r\n\r\n";
-	$message .= sprintf(__('E-mail: %s'), $user->user_email) . "\r\n";
+	$message .= sprintf(__('Email: %s'), $user->user_email) . "\r\n";
 
 	@wp_mail(get_option('admin_email'), sprintf(__('[%s] New User Registration'), $blogname), $message);
 
-	if ( empty($plaintext_pass) )
+	if ( 'admin' === $notify || empty( $notify ) ) {
 		return;
+	}
 
-	$message  = sprintf(__('Username: %s'), $user->user_login) . "\r\n";
-	$message .= sprintf(__('Password: %s'), $plaintext_pass) . "\r\n";
+	// Generate something random for a password reset key.
+	$key = wp_generate_password( 20, false );
+
+	/** This action is documented in wp-login.php */
+	do_action( 'retrieve_password_key', $user->user_login, $key );
+
+	// Now insert the key, hashed, into the DB.
+	if ( empty( $wp_hasher ) ) {
+		require_once ABSPATH . WPINC . '/class-phpass.php';
+		$wp_hasher = new PasswordHash( 8, true );
+	}
+	$hashed = time() . ':' . $wp_hasher->HashPassword( $key );
+	$wpdb->update( $wpdb->users, array( 'user_activation_key' => $hashed ), array( 'user_login' => $user->user_login ) );
+
+	$message = sprintf(__('Username: %s'), $user->user_login) . "\r\n\r\n";
+	$message .= __('To set your password, visit the following address:') . "\r\n\r\n";
+	$message .= '<' . network_site_url("wp-login.php?action=rp&key=$key&login=" . rawurlencode($user->user_login), 'login') . ">\r\n\r\n";
+
 	$message .= wp_login_url() . "\r\n";
 
-	wp_mail($user->user_email, sprintf(__('[%s] Your username and password'), $blogname), $message);
-
+	wp_mail($user->user_email, sprintf(__('[%s] Your username and password info'), $blogname), $message);
 }
 endif;
 
@@ -1789,6 +1815,18 @@ function wp_verify_nonce( $nonce, $action = -1 ) {
 		return 2;
 	}
 
+	/**
+	 * Fires when nonce verification fails.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param string     $nonce  The invalid nonce.
+	 * @param string|int $action The nonce action.
+	 * @param WP_User    $user   The current user object.
+	 * @param string     $token  The user's session token.
+	 */
+	do_action( 'wp_verify_nonce_failed', $nonce, $action, $user, $token );
+
 	// Invalid nonce
 	return false;
 }
@@ -1796,9 +1834,11 @@ endif;
 
 if ( !function_exists('wp_create_nonce') ) :
 /**
- * Creates a cryptographic token tied to a specific action, user, and window of time.
+ * Creates a cryptographic token tied to a specific action, user, user session,
+ * and window of time.
  *
  * @since 2.0.3
+ * @since 4.0.0 Session tokens were integrated with nonce creation
  *
  * @param string|int $action Scalar value to add context to the nonce.
  * @return string The token.
@@ -2093,8 +2133,9 @@ function wp_rand( $min = 0, $max = 0 ) {
 		$rnd_value .= sha1($rnd_value);
 		$rnd_value .= sha1($rnd_value . $seed);
 		$seed = md5($seed . $rnd_value);
-		if ( ! defined( 'WP_SETUP_CONFIG' ) )
-			set_transient('random_seed', $seed);
+		if ( ! defined( 'WP_SETUP_CONFIG' ) && ! defined( 'WP_INSTALLING' ) ) {
+			set_transient( 'random_seed', $seed );
+		}
 	}
 
 	// Take the first 8 digits for our value
@@ -2152,7 +2193,7 @@ if ( !function_exists( 'get_avatar' ) ) :
  * @since 4.2.0 Optional `$args` parameter added.
  *
  * @param mixed $id_or_email The Gravatar to retrieve. Accepts a user_id, gravatar md5 hash,
- *                           user email, WP_User object, WP_Post object, or comment object.
+ *                           user email, WP_User object, WP_Post object, or WP_Comment object.
  * @param int    $size       Optional. Height and width of the avatar image file in pixels. Default 96.
  * @param string $default    Optional. URL for the default image or a default type. Accepts '404'
  *                           (return a 404 instead of a default image), 'retro' (8bit), 'monsterid'
@@ -2220,9 +2261,10 @@ function get_avatar( $id_or_email, $size = 96, $default = '', $alt = '', $args =
 	 *
 	 * @since 4.2.0
 	 *
-	 * @param string            $avatar      HTML for the user's avatar. Default null.
-	 * @param int|object|string $id_or_email A user ID, email address, or comment object.
-	 * @param array             $args        Arguments passed to get_avatar_url(), after processing.
+	 * @param string $avatar      HTML for the user's avatar. Default null.
+	 * @param mixed  $id_or_email The Gravatar to retrieve. Accepts a user_id, gravatar md5 hash,
+	 *                            user email, WP_User object, WP_Post object, or WP_Comment object.
+	 * @param array  $args        Arguments passed to get_avatar_url(), after processing.
 	 */
 	$avatar = apply_filters( 'pre_get_avatar', null, $id_or_email, $args );
 
@@ -2235,6 +2277,8 @@ function get_avatar( $id_or_email, $size = 96, $default = '', $alt = '', $args =
 		return false;
 	}
 
+	$url2x = get_avatar_url( $id_or_email, array_merge( $args, array( 'size' => $args['size'] * 2 ) ) );
+
 	$args = get_avatar_data( $id_or_email, $args );
 
 	$url = $args['url'];
@@ -2242,8 +2286,6 @@ function get_avatar( $id_or_email, $size = 96, $default = '', $alt = '', $args =
 	if ( ! $url || is_wp_error( $url ) ) {
 		return false;
 	}
-
-	$url2x = add_query_arg( array( 's' => $args['size'] * 2 ), $args['url'] );
 
 	$class = array( 'avatar', 'avatar-' . (int) $args['size'], 'photo' );
 
@@ -2276,12 +2318,13 @@ function get_avatar( $id_or_email, $size = 96, $default = '', $alt = '', $args =
 	 * @since 2.5.0
 	 * @since 4.2.0 The `$args` parameter was added.
 	 *
-	 * @param string            $avatar      &lt;img&gt; tag for the user's avatar.
-	 * @param int|object|string $id_or_email A user ID, email address, or comment object.
-	 * @param int               $size        Square avatar width and height in pixels to retrieve.
-	 * @param string            $alt         Alternative text to use in the avatar image tag.
+	 * @param string $avatar      &lt;img&gt; tag for the user's avatar.
+	 * @param mixed  $id_or_email The Gravatar to retrieve. Accepts a user_id, gravatar md5 hash,
+	 *                            user email, WP_User object, WP_Post object, or WP_Comment object.
+	 * @param int    $size        Square avatar width and height in pixels to retrieve.
+	 * @param string $alt         Alternative text to use in the avatar image tag.
 	 *                                       Default empty.
-	 * @param array             $args        Arguments passed to get_avatar_data(), after processing.
+	 * @param array  $args        Arguments passed to get_avatar_data(), after processing.
 	 */
 	return apply_filters( 'get_avatar', $avatar, $id_or_email, $args['size'], $args['default'], $args['alt'], $args );
 }

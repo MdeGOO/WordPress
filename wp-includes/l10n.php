@@ -774,11 +774,15 @@ function translate_user_role( $name ) {
 function get_available_languages( $dir = null ) {
 	$languages = array();
 
-	foreach( (array)glob( ( is_null( $dir) ? WP_LANG_DIR : $dir ) . '/*.mo' ) as $lang_file ) {
-		$lang_file = basename($lang_file, '.mo');
-		if ( 0 !== strpos( $lang_file, 'continents-cities' ) && 0 !== strpos( $lang_file, 'ms-' ) &&
-			0 !== strpos( $lang_file, 'admin-' ))
-			$languages[] = $lang_file;
+	$lang_files = glob( ( is_null( $dir) ? WP_LANG_DIR : $dir ) . '/*.mo' );
+	if ( $lang_files ) {
+		foreach ( $lang_files as $lang_file ) {
+			$lang_file = basename( $lang_file, '.mo' );
+			if ( 0 !== strpos( $lang_file, 'continents-cities' ) && 0 !== strpos( $lang_file, 'ms-' ) &&
+				0 !== strpos( $lang_file, 'admin-' ) ) {
+				$languages[] = $lang_file;
+			}
+		}
 	}
 
 	return $languages;
@@ -820,7 +824,7 @@ function wp_get_installed_translations( $type ) {
 		if ( substr( $file, -3 ) !== '.po' ) {
 			continue;
 		}
-		if ( ! preg_match( '/(?:(.+)-)?([A-Za-z_]{2,6}).po/', $file, $match ) ) {
+		if ( ! preg_match( '/(?:(.+)-)?([a-z]{2,3}(?:_[A-Z]{2})?(?:_[a-z0-9]+)?).po/', $file, $match ) ) {
 			continue;
 		}
 		if ( ! in_array( substr( $file, 0, -3 ) . '.mo', $files ) )  {
@@ -875,7 +879,7 @@ function wp_get_pomo_file_data( $po_file ) {
  *     @type array    $languages                    List of installed languages, contain only the locales.
  *                                                  Default empty array.
  *     @type array    $translations                 List of available translations. Default result of
- *                                                  {@see wp_get_available_translations()}.
+ *                                                  wp_get_available_translations().
  *     @type string   $selected                     Language which should be selected. Default empty.
  *     @type bool|int $echo                         Whether to echo or return the generated markup. Accepts 0, 1, or their
  *                                                  bool equivalents. Default 1.

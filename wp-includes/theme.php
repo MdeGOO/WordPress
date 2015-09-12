@@ -661,116 +661,6 @@ function locale_stylesheet() {
 }
 
 /**
- * Start preview theme output buffer.
- *
- * Will only perform task if the user has permissions and template and preview
- * query variables exist.
- *
- * @since 2.6.0
- */
-function preview_theme() {
-	if ( ! (isset($_GET['template']) && isset($_GET['preview'])) )
-		return;
-
-	if ( !current_user_can( 'switch_themes' ) )
-		return;
-
-	// Admin Thickbox requests
-	if ( isset( $_GET['preview_iframe'] ) )
-		show_admin_bar( false );
-
-	$_GET['template'] = preg_replace('|[^a-z0-9_./-]|i', '', $_GET['template']);
-
-	if ( validate_file($_GET['template']) )
-		return;
-
-	add_filter( 'template', '_preview_theme_template_filter' );
-
-	if ( isset($_GET['stylesheet']) ) {
-		$_GET['stylesheet'] = preg_replace('|[^a-z0-9_./-]|i', '', $_GET['stylesheet']);
-		if ( validate_file($_GET['stylesheet']) )
-			return;
-		add_filter( 'stylesheet', '_preview_theme_stylesheet_filter' );
-	}
-
-	// Prevent theme mods to current theme being used on theme being previewed
-	add_filter( 'pre_option_theme_mods_' . get_option( 'stylesheet' ), '__return_empty_array' );
-
-	ob_start( 'preview_theme_ob_filter' );
-}
-
-/**
- * Private function to modify the current template when previewing a theme
- *
- * @since 2.9.0
- * @access private
- *
- * @return string
- */
-function _preview_theme_template_filter() {
-	return isset($_GET['template']) ? $_GET['template'] : '';
-}
-
-/**
- * Private function to modify the current stylesheet when previewing a theme
- *
- * @since 2.9.0
- * @access private
- *
- * @return string
- */
-function _preview_theme_stylesheet_filter() {
-	return isset($_GET['stylesheet']) ? $_GET['stylesheet'] : '';
-}
-
-/**
- * Callback function for ob_start() to capture all links in the theme.
- *
- * @since 2.6.0
- * @access private
- *
- * @param string $content
- * @return string
- */
-function preview_theme_ob_filter( $content ) {
-	return preg_replace_callback( "|(<a.*?href=([\"']))(.*?)([\"'].*?>)|", 'preview_theme_ob_filter_callback', $content );
-}
-
-/**
- * Manipulates preview theme links in order to control and maintain location.
- *
- * Callback function for preg_replace_callback() to accept and filter matches.
- *
- * @since 2.6.0
- * @access private
- *
- * @param array $matches
- * @return string
- */
-function preview_theme_ob_filter_callback( $matches ) {
-	if ( strpos($matches[4], 'onclick') !== false )
-		$matches[4] = preg_replace('#onclick=([\'"]).*?(?<!\\\)\\1#i', '', $matches[4]); //Strip out any onclicks from rest of <a>. (?<!\\\) means to ignore the '" if it's escaped by \  to prevent breaking mid-attribute.
-	if (
-		( false !== strpos($matches[3], '/wp-admin/') )
-	||
-		( false !== strpos( $matches[3], '://' ) && 0 !== strpos( $matches[3], home_url() ) )
-	||
-		( false !== strpos($matches[3], '/feed/') )
-	||
-		( false !== strpos($matches[3], '/trackback/') )
-	)
-		return $matches[1] . "#$matches[2] onclick=$matches[2]return false;" . $matches[4];
-
-	$stylesheet = isset( $_GET['stylesheet'] ) ? $_GET['stylesheet'] : '';
-	$template   = isset( $_GET['template'] )   ? $_GET['template']   : '';
-
-	$link = add_query_arg( array( 'preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'preview_iframe' => 1 ), $matches[3] );
-	if ( 0 === strpos($link, 'preview=1') )
-		$link = "?$link";
-	return $matches[1] . esc_attr( $link ) . $matches[4];
-}
-
-/**
  * Switches the theme.
  *
  * Accepts one argument: $stylesheet of the theme. It also accepts an additional function signature
@@ -798,15 +688,15 @@ function switch_theme( $stylesheet ) {
 		set_theme_mod( 'sidebars_widgets', array( 'time' => time(), 'data' => $_sidebars_widgets ) );
 	}
 
-	$old_theme  = wp_get_theme();
-	$new_theme = wp_get_theme( $stylesheet );
+	$nav_menu_locations = get_theme_mod( 'nav_menu_locations' );
 
 	if ( func_num_args() > 1 ) {
-		$template = $stylesheet;
 		$stylesheet = func_get_arg( 1 );
-	} else {
-		$template = $new_theme->get_template();
 	}
+
+	$old_theme = wp_get_theme();
+	$new_theme = wp_get_theme( $stylesheet );
+	$template  = $new_theme->get_template();
 
 	update_option( 'template', $template );
 	update_option( 'stylesheet', $stylesheet );
@@ -826,6 +716,9 @@ function switch_theme( $stylesheet ) {
 	// Migrate from the old mods_{name} option to theme_mods_{slug}.
 	if ( is_admin() && false === get_option( 'theme_mods_' . $stylesheet ) ) {
 		$default_theme_mods = (array) get_option( 'mods_' . $new_name );
+		if ( ! empty( $nav_menu_locations ) && empty( $default_theme_mods['nav_menu_locations'] ) ) {
+			$default_theme_mods['nav_menu_locations'] = $nav_menu_locations;
+		}
 		add_option( "theme_mods_$stylesheet", $default_theme_mods );
 	} else {
 		/*
@@ -835,6 +728,13 @@ function switch_theme( $stylesheet ) {
 		 */
 		if ( 'wp_ajax_customize_save' === current_action() ) {
 			remove_theme_mod( 'sidebars_widgets' );
+		}
+
+		if ( ! empty( $nav_menu_locations ) ) {
+			$nav_mods = get_theme_mod( 'nav_menu_locations' );
+			if ( empty( $nav_mods ) ) {
+				set_theme_mod( 'nav_menu_locations', $nav_menu_locations );
+			}
 		}
 	}
 
@@ -1159,7 +1059,7 @@ function get_random_header_image() {
  * @since 3.2.0
  *
  * @param string $type The random pool to use. any|default|uploaded
- * @return boolean
+ * @return bool
  */
 function is_random_header_image( $type = 'any' ) {
 	$header_image_mod = get_theme_mod( 'header_image', get_theme_support( 'custom-header', 'default-image' ) );
@@ -1209,10 +1109,13 @@ function get_uploaded_header_images() {
 		$url = esc_url_raw( wp_get_attachment_url( $header->ID ) );
 		$header_data = wp_get_attachment_metadata( $header->ID );
 		$header_index = basename($url);
+
 		$header_images[$header_index] = array();
-		$header_images[$header_index]['attachment_id'] =  $header->ID;
+		$header_images[$header_index]['attachment_id'] = $header->ID;
 		$header_images[$header_index]['url'] =  $url;
-		$header_images[$header_index]['thumbnail_url'] =  $url;
+		$header_images[$header_index]['thumbnail_url'] = $url;
+		$header_images[$header_index]['alt_text'] = get_post_meta( $header->ID, '_wp_attachment_image_alt', true );
+
 		if ( isset( $header_data['width'] ) )
 			$header_images[$header_index]['width'] = $header_data['width'];
 		if ( isset( $header_data['height'] ) )
@@ -1499,6 +1402,7 @@ function get_editor_stylesheets() {
 			}
 		}
 	}
+
 	/**
 	 * Filter the array of stylesheets applied to the editor.
 	 *
@@ -1927,22 +1831,27 @@ function require_if_theme_supports( $feature, $include ) {
  * Checks an attachment being deleted to see if it's a header or background image.
  *
  * If true it removes the theme modification which would be pointing at the deleted
- * attachment
+ * attachment.
  *
  * @access private
  * @since 3.0.0
- * @param int $id the attachment id
+ * @since 4.3.0 Also removes `header_image_data`.
+ *
+ * @param int $id The attachment id.
  */
 function _delete_attachment_theme_mod( $id ) {
 	$attachment_image = wp_get_attachment_url( $id );
-	$header_image = get_header_image();
+	$header_image     = get_header_image();
 	$background_image = get_background_image();
 
-	if ( $header_image && $header_image == $attachment_image )
+	if ( $header_image && $header_image == $attachment_image ) {
 		remove_theme_mod( 'header_image' );
+		remove_theme_mod( 'header_image_data' );
+	}
 
-	if ( $background_image && $background_image == $attachment_image )
+	if ( $background_image && $background_image == $attachment_image ) {
 		remove_theme_mod( 'background_image' );
+	}
 }
 
 /**
@@ -1979,6 +1888,7 @@ function check_theme_switched() {
 			/** This action is documented in wp-includes/theme.php */
 			do_action( 'after_switch_theme', $stylesheet );
 		}
+		flush_rewrite_rules();
 
 		update_option( 'theme_switched', false );
 	}
@@ -1987,7 +1897,8 @@ function check_theme_switched() {
 /**
  * Includes and instantiates the WP_Customize_Manager class.
  *
- * Fires when ?wp_customize=on or on wp-admin/customize.php.
+ * Fires on a preview frame request (when ?wp_customize=on is in the URL) and
+ * on the Customizer interface page (wp-admin/customize.php).
  *
  * @since 3.4.0
  *

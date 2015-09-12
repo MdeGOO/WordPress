@@ -254,7 +254,21 @@ function update_right_now_message() {
 			$msg .= '<a href="' . network_admin_url( 'update-core.php' ) . '" class="button" aria-describedby="wp-version">' . sprintf( __( 'Update to %s' ), $cur->current ? $cur->current : __( 'Latest' ) ) . '</a> ';
 	}
 
-	$msg .= sprintf( '<span id="wp-version">' . __( 'WordPress %1$s running %2$s theme.' ) . '</span>', get_bloginfo( 'version', 'display' ), $theme_name );
+	/* translators: 1: version number, 2: theme name */
+	$content = __( 'WordPress %1$s running %2$s theme.' );
+
+	/**
+	 * Filter the text displayed in the 'At a Glance' dashboard widget.
+	 *
+	 * Prior to 3.8.0, the widget was named 'Right Now'.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param string $content Default text.
+	 */
+	$content = apply_filters( 'update_right_now_text', $content );
+
+	$msg .= sprintf( '<span id="wp-version">' . $content . '</span>', get_bloginfo( 'version', 'display' ), $theme_name );
 
 	echo "<p id='wp-version-message'>$msg</p>";
 }
@@ -288,7 +302,7 @@ function wp_plugin_update_rows() {
 	$plugins = get_site_transient( 'update_plugins' );
 	if ( isset($plugins->response) && is_array($plugins->response) ) {
 		$plugins = array_keys( $plugins->response );
-		foreach( $plugins as $plugin_file ) {
+		foreach ( $plugins as $plugin_file ) {
 			add_action( "after_plugin_row_$plugin_file", 'wp_plugin_update_row', 10, 2 );
 		}
 	}
@@ -315,7 +329,12 @@ function wp_plugin_update_row( $file, $plugin_data ) {
 	$wp_list_table = _get_list_table('WP_Plugins_List_Table');
 
 	if ( is_network_admin() || !is_multisite() ) {
-		$active_class = is_plugin_active( $file ) ? ' active' : '';
+		if ( is_network_admin() ) {
+			$active_class = is_plugin_active_for_network( $file ) ? ' active': '';
+		} else {
+			$active_class = is_plugin_active( $file ) ? ' active' : '';
+		}
+
 		echo '<tr class="plugin-update-tr' . $active_class . '" id="' . esc_attr( $r->slug . '-update' ) . '" data-slug="' . esc_attr( $r->slug ) . '" data-plugin="' . esc_attr( $file ) . '"><td colspan="' . esc_attr( $wp_list_table->get_column_count() ) . '" class="plugin-update colspanchange"><div class="update-message">';
 
 		if ( ! current_user_can( 'update_plugins' ) ) {
@@ -396,7 +415,7 @@ function wp_theme_update_rows() {
 	if ( isset($themes->response) && is_array($themes->response) ) {
 		$themes = array_keys( $themes->response );
 
-		foreach( $themes as $theme ) {
+		foreach ( $themes as $theme ) {
 			add_action( "after_theme_row_$theme", 'wp_theme_update_row', 10, 2 );
 		}
 	}

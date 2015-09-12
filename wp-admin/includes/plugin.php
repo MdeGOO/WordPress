@@ -765,14 +765,14 @@ function delete_plugins( $plugins, $deprecated = '' ) {
 		return false;
 
 	$checked = array();
-	foreach( $plugins as $plugin )
+	foreach ( $plugins as $plugin )
 		$checked[] = 'checked[]=' . $plugin;
 
 	ob_start();
 	$url = wp_nonce_url('plugins.php?action=delete-selected&verify-delete=1&' . implode('&', $checked), 'bulk-plugins');
 	if ( false === ($credentials = request_filesystem_credentials($url)) ) {
-		$data = ob_get_contents();
-		ob_end_clean();
+		$data = ob_get_clean();
+
 		if ( ! empty($data) ){
 			include_once( ABSPATH . 'wp-admin/admin-header.php');
 			echo $data;
@@ -784,8 +784,8 @@ function delete_plugins( $plugins, $deprecated = '' ) {
 
 	if ( ! WP_Filesystem($credentials) ) {
 		request_filesystem_credentials($url, '', true); //Failed to connect, Error and request again
-		$data = ob_get_contents();
-		ob_end_clean();
+		$data = ob_get_clean();
+
 		if ( ! empty($data) ){
 			include_once( ABSPATH . 'wp-admin/admin-header.php');
 			echo $data;
@@ -813,7 +813,7 @@ function delete_plugins( $plugins, $deprecated = '' ) {
 
 	$errors = array();
 
-	foreach( $plugins as $plugin_file ) {
+	foreach ( $plugins as $plugin_file ) {
 		// Run Uninstall hook.
 		if ( is_uninstallable_plugin( $plugin_file ) ) {
 			uninstall_plugin($plugin_file);
@@ -1947,4 +1947,12 @@ function wp_clean_plugins_cache( $clear_update_cache = true ) {
 	if ( $clear_update_cache )
 		delete_site_transient( 'update_plugins' );
 	wp_cache_delete( 'plugins', 'plugins' );
+}
+
+/**
+ * @param string $plugin
+ */
+function plugin_sandbox_scrape( $plugin ) {
+	wp_register_plugin_realpath( WP_PLUGIN_DIR . '/' . $plugin );
+	include( WP_PLUGIN_DIR . '/' . $plugin );
 }

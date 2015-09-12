@@ -607,35 +607,42 @@ function image_get_intermediate_size( $post_id, $size = 'thumbnail' ) {
 
 	// get the best one for a specified set of dimensions
 	if ( is_array($size) && !empty($imagedata['sizes']) ) {
-		$areas = array();
+		$candidates = array();
 
 		foreach ( $imagedata['sizes'] as $_size => $data ) {
-			// already cropped to width or height; so use this size
-			if ( ( $data['width'] == $size[0] && $data['height'] <= $size[1] ) || ( $data['height'] == $size[1] && $data['width'] <= $size[0] ) ) {
+			// If there's an exact match to an existing image size, short circuit.
+			if ( $data['width'] == $size[0] && $data['height'] == $size[1] ) {
 				$file = $data['file'];
 				list($width, $height) = image_constrain_size_for_editor( $data['width'], $data['height'], $size );
 				return compact( 'file', 'width', 'height' );
 			}
-			// add to lookup table: area => size
-			$areas[$data['width'] * $data['height']] = $_size;
+			// If it's not an exact match but it's at least the dimensions requested.
+			if ( $data['width'] >= $size[0] && $data['height'] >= $size[1] ) {
+				$candidates[ $data['width'] * $data['height'] ] = $_size;
+			}
 		}
-		if ( !$size || !empty($areas) ) {
+
+		if ( ! empty( $candidates ) ) {
 			// find for the smallest image not smaller than the desired size
-			ksort($areas);
-			foreach ( $areas as $_size ) {
+			ksort( $candidates );
+			foreach ( $candidates as $_size ) {
 				$data = $imagedata['sizes'][$_size];
-				if ( $data['width'] >= $size[0] || $data['height'] >= $size[1] ) {
-					// Skip images with unexpectedly divergent aspect ratios (crops)
-					// First, we calculate what size the original image would be if constrained to a box the size of the current image in the loop
-					$maybe_cropped = image_resize_dimensions($imagedata['width'], $imagedata['height'], $data['width'], $data['height'], false );
-					// If the size doesn't match within one pixel, then it is of a different aspect ratio, so we skip it, unless it's the thumbnail size
-					if ( 'thumbnail' != $_size && ( !$maybe_cropped || ( $maybe_cropped[4] != $data['width'] && $maybe_cropped[4] + 1 != $data['width'] ) || ( $maybe_cropped[5] != $data['height'] && $maybe_cropped[5] + 1 != $data['height'] ) ) )
-						continue;
-					// If we're still here, then we're going to use this size
-					$file = $data['file'];
-					list($width, $height) = image_constrain_size_for_editor( $data['width'], $data['height'], $size );
-					return compact( 'file', 'width', 'height' );
+
+				// Skip images with unexpectedly divergent aspect ratios (crops)
+				// First, we calculate what size the original image would be if constrained to a box the size of the current image in the loop
+				$maybe_cropped = image_resize_dimensions($imagedata['width'], $imagedata['height'], $data['width'], $data['height'], false );
+				// If the size doesn't match within one pixel, then it is of a different aspect ratio, so we skip it, unless it's the thumbnail size
+				if ( 'thumbnail' != $_size &&
+				  ( ! $maybe_cropped
+				    || ( $maybe_cropped[4] != $data['width'] && $maybe_cropped[4] + 1 != $data['width'] )
+				    || ( $maybe_cropped[5] != $data['height'] && $maybe_cropped[5] + 1 != $data['height'] )
+				  ) ) {
+				  continue;
 				}
+				// If we're still here, then we're going to use this size
+				$file = $data['file'];
+				list( $width, $height ) = image_constrain_size_for_editor( $data['width'], $data['height'], $size );
+				return compact( 'file', 'width', 'height' );
 			}
 		}
 	}
@@ -699,7 +706,7 @@ function wp_get_attachment_image_src( $attachment_id, $size = 'thumbnail', $icon
 		$src = false;
 
 		if ( $icon && $src = wp_mime_type_icon( $attachment_id ) ) {
-			/** This filter is documented in wp-includes/post.php */
+			/** This filter is documented in wp-includes/post-functions.php */
 			$icon_dir = apply_filters( 'icon_dir', ABSPATH . WPINC . '/images/media' );
 
 			$src_file = $icon_dir . '/' . wp_basename( $src );
@@ -721,7 +728,7 @@ function wp_get_attachment_image_src( $attachment_id, $size = 'thumbnail', $icon
 	 *                                    array of height and width dimensions. Default 'thumbnail'.
 	 * @param bool         $icon          Whether the image should be treated as an icon. Default false.
 	 */
-	return apply_filters( 'attachment_image_src', $image, $attachment_id, $size, $icon );
+	return apply_filters( 'wp_get_attachment_image_src', $image, $attachment_id, $size, $icon );
 }
 
 /**
@@ -896,7 +903,7 @@ function img_caption_shortcode( $attr, $content = null ) {
 		return $content;
 
 	if ( ! empty( $atts['id'] ) )
-		$atts['id'] = 'id="' . esc_attr( $atts['id'] ) . '" ';
+		$atts['id'] = 'id="' . esc_attr( sanitize_html_class( $atts['id'] ) ) . '" ';
 
 	$class = trim( 'wp-caption ' . $atts['align'] . ' ' . $atts['class'] );
 
@@ -1166,7 +1173,10 @@ function wp_underscore_playlist_templates() {
 	<img src="{{ data.thumb.src }}"/>
 	<# } #>
 	<div class="wp-playlist-caption">
-		<span class="wp-playlist-item-meta wp-playlist-item-title">&#8220;{{ data.title }}&#8221;</span>
+		<span class="wp-playlist-item-meta wp-playlist-item-title"><?php 
+			/* translators: playlist item title */
+			printf( _x( '&#8220;%s&#8221;', 'playlist item title' ), '{{ data.title }}' );
+		?></span>
 		<# if ( data.meta.album ) { #><span class="wp-playlist-item-meta wp-playlist-item-album">{{ data.meta.album }}</span><# } #>
 		<# if ( data.meta.artist ) { #><span class="wp-playlist-item-meta wp-playlist-item-artist">{{ data.meta.artist }}</span><# } #>
 	</div>
@@ -1178,7 +1188,10 @@ function wp_underscore_playlist_templates() {
 			<# if ( data.caption ) { #>
 				{{ data.caption }}
 			<# } else { #>
-				<span class="wp-playlist-item-title">&#8220;{{{ data.title }}}&#8221;</span>
+				<span class="wp-playlist-item-title"><?php
+					/* translators: playlist item title */
+					printf( _x( '&#8220;%s&#8221;', 'playlist item title' ), '{{{ data.title }}}' );
+				?></span>
 				<# if ( data.artists && data.meta.artist ) { #>
 				<span class="wp-playlist-item-artist"> &mdash; {{ data.meta.artist }}</span>
 				<# } #>
@@ -1550,7 +1563,6 @@ function wp_get_attachment_id3_keys( $attachment, $context = 'display' ) {
  *     @type string $autoplay The 'autoplay' attribute for the `<audio>` element. Default empty.
  *     @type string $preload  The 'preload' attribute for the `<audio>` element. Default empty.
  *     @type string $class    The 'class' attribute for the `<audio>` element. Default 'wp-audio-shortcode'.
- *     @type string $id       The 'id' attribute for the `<audio>` element. Default 'audio-{$post_id}-{$instance}'.
  *     @type string $style    The 'style' attribute for the `<audio>` element. Default 'width: 100%'.
  * }
  * @param string $content Shortcode content.
@@ -1751,8 +1763,6 @@ function wp_get_video_extensions() {
  *                            Default 'metadata'.
  *     @type string $class    The 'class' attribute for the `<video>` element.
  *                            Default 'wp-video-shortcode'.
- *     @type string $id       The 'id' attribute for the `<video>` element.
- *                            Default 'video-{$post_id}-{$instance}'.
  * }
  * @param string $content Shortcode content.
  * @return string|void HTML content to display video.
@@ -3434,6 +3444,14 @@ function attachment_url_to_postid( $url ) {
 	$dir = wp_upload_dir();
 	$path = $url;
 
+	$site_url = parse_url( $dir['url'] );
+	$image_path = parse_url( $path );
+
+	//force the protocols to match if needed
+	if ( isset( $image_path['scheme'] ) && ( $image_path['scheme'] !== $site_url['scheme'] ) ) {
+		$path = str_replace( $image_path['scheme'], $site_url['scheme'], $path );
+	}
+
 	if ( 0 === strpos( $path, $dir['baseurl'] . '/' ) ) {
 		$path = substr( $path, strlen( $dir['baseurl'] . '/' ) );
 	}
@@ -3452,9 +3470,7 @@ function attachment_url_to_postid( $url ) {
 	 * @param int|null $post_id The post_id (if any) found by the function.
 	 * @param string   $url     The URL being looked up.
 	 */
-	$post_id = apply_filters( 'attachment_url_to_postid', $post_id, $url );
-
-	return (int) $post_id;
+	return (int) apply_filters( 'attachment_url_to_postid', $post_id, $url );
 }
 
 /**

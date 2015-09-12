@@ -207,7 +207,7 @@ function apply_filters( $tag, $value ) {
 		$args = func_get_args();
 
 	do {
-		foreach( (array) current($wp_filter[$tag]) as $the_ )
+		foreach ( (array) current($wp_filter[$tag]) as $the_ )
 			if ( !is_null($the_['function']) ){
 				$args[1] = $value;
 				$value = call_user_func_array($the_['function'], array_slice($args, 1, (int) $the_['accepted_args']));
@@ -264,7 +264,7 @@ function apply_filters_ref_array($tag, $args) {
 	reset( $wp_filter[ $tag ] );
 
 	do {
-		foreach( (array) current($wp_filter[$tag]) as $the_ )
+		foreach ( (array) current($wp_filter[$tag]) as $the_ )
 			if ( !is_null($the_['function']) )
 				$args[0] = call_user_func_array($the_['function'], array_slice($args, 0, (int) $the_['accepted_args']));
 
@@ -574,7 +574,7 @@ function do_action_ref_array($tag, $args) {
 	reset( $wp_filter[ $tag ] );
 
 	do {
-		foreach( (array) current($wp_filter[$tag]) as $the_ )
+		foreach ( (array) current($wp_filter[$tag]) as $the_ )
 			if ( !is_null($the_['function']) )
 				call_user_func_array($the_['function'], array_slice($args, 0, (int) $the_['accepted_args']));
 
@@ -615,7 +615,7 @@ function has_action($tag, $function_to_check = false) {
  * @param string   $tag                The action hook to which the function to be removed is hooked.
  * @param callback $function_to_remove The name of the function which should be removed.
  * @param int      $priority           Optional. The priority of the function. Default 10.
- * @return boolean Whether the function is removed.
+ * @return bool Whether the function is removed.
  */
 function remove_action( $tag, $function_to_remove, $priority = 10 ) {
 	return remove_filter( $tag, $function_to_remove, $priority );
@@ -845,7 +845,7 @@ function _wp_call_all_hook($args) {
 
 	reset( $wp_filter['all'] );
 	do {
-		foreach( (array) current($wp_filter['all']) as $the_ )
+		foreach ( (array) current($wp_filter['all']) as $the_ )
 			if ( !is_null($the_['function']) )
 				call_user_func_array($the_['function'], $args);
 

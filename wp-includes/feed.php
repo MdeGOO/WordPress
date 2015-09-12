@@ -88,41 +88,6 @@ function get_default_feed() {
 }
 
 /**
- * Get the timestamp of the most recently modified post from WP_Query
- *
- * If viewing a comment feed, the date of the most recently modified
- * comment will be returned.
- *
- * @since 4.3.0
- *
- * @return string Date ('Y-m-d H:i:s' for use with mysql2date() )
- */
-function get_last_build_date_feed() {
-	global $wp_query, $wpdb;
-
-	if ( $wp_query->have_posts() ) {
-		$post_ids = array();
-		$post_times = array();
-		foreach( $wp_query->posts as $post ) {
-			$post_ids[] = $post->ID;
-			$post_times[] = $post->post_modified_gmt;
-		}
-		$postids = implode( "','", $post_ids );
-		$max_post_time = max( $post_times );
-
-		if ( $wp_query->is_comment_feed() ) {
-			$max_comment_time = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(comment_date_gmt) FROM $wpdb->comments WHERE comment_post_ID IN ('%s') AND comment_approved = '1'", $postids ) );
-
-			return max( $max_post_time, $max_comment_time );
-		}
-		return $max_post_time;
-	}
-
-	// Fallback to last time any post was modified or published.
-	return get_lastpostmodified( 'GMT' );
-}
-
-/**
  * Retrieve the blog title for the feed title.
  *
  * @since 2.2.0
@@ -299,7 +264,7 @@ function comments_link_feed() {
  *
  * @since 2.5.0
  *
- * @param int|object $comment_id Optional comment object or id. Defaults to global comment object.
+ * @param int|WP_Comment $comment_id Optional comment object or id. Defaults to global comment object.
  */
 function comment_guid($comment_id = null) {
 	echo esc_url( get_comment_guid($comment_id) );
@@ -310,7 +275,7 @@ function comment_guid($comment_id = null) {
  *
  * @since 2.5.0
  *
- * @param int|object $comment_id Optional comment object or id. Defaults to global comment object.
+ * @param int|WP_Comment $comment_id Optional comment object or id. Defaults to global comment object.
  * @return false|string false on failure or guid for comment on success.
  */
 function get_comment_guid($comment_id = null) {
@@ -326,8 +291,11 @@ function get_comment_guid($comment_id = null) {
  * Display the link to the comments.
  *
  * @since 1.5.0
+ * @since 4.4.0 Introduced the `$comment` argument.
+ *
+ * @param int|WP_Comment $comment Optional comment object or id. Defaults to global comment object.
  */
-function comment_link() {
+function comment_link( $comment = null ) {
 	/**
 	 * Filter the current comment's permalink.
 	 *
@@ -337,7 +305,7 @@ function comment_link() {
 	 *
 	 * @param string $comment_permalink The current comment permalink.
 	 */
-	echo esc_url( apply_filters( 'comment_link', get_comment_link() ) );
+	echo esc_url( apply_filters( 'comment_link', get_comment_link( $comment ) ) );
 }
 
 /**
@@ -584,6 +552,44 @@ function prep_atom_text_construct($data) {
 		return array('html', "<![CDATA[$data]]>");
 	} else {
 		return array('html', htmlspecialchars($data));
+	}
+}
+
+/**
+ * Displays Site Icon in atom feeds.
+ *
+ * @since 4.3.0
+ *
+ * @see get_site_icon_url()
+ */
+function atom_site_icon() {
+	$url = get_site_icon_url( 32 );
+	if ( $url ) {
+		echo "<icon>$url</icon>\n";
+	}
+}
+
+/**
+ * Displays Site Icon in RSS2.
+ *
+ * @since 4.3.0
+ */
+function rss2_site_icon() {
+	$rss_title = get_wp_title_rss();
+	if ( empty( $rss_title ) ) {
+		$rss_title = get_bloginfo_rss( 'name' );
+	}
+
+	$url = get_site_icon_url( 32 );
+	if ( $url ) {
+		echo '
+<image>
+	<url>' . convert_chars( $url ) . '</url>
+	<title>' . $rss_title . '</title>
+	<link>' . get_bloginfo_rss( 'url' ) . '</link>
+	<width>32</width>
+	<height>32</height>
+</image> ' . "\n";
 	}
 }
 

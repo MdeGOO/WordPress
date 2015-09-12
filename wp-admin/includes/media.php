@@ -552,10 +552,9 @@ function media_buttons($editor_id = 'content') {
 	$img = '<span class="wp-media-buttons-icon"></span> ';
 
 	$id_attribute = $instance === 1 ? ' id="insert-media-button"' : '';
-	printf( '<a href="#"%s class="button insert-media add_media" data-editor="%s" title="%s">%s</a>',
+	printf( '<button type="button"%s class="button insert-media add_media" data-editor="%s">%s</button>',
 		$id_attribute,
 		esc_attr( $editor_id ),
-		esc_attr__( 'Add Media' ),
 		$img . __( 'Add Media' )
 	);
 	/**
@@ -725,7 +724,7 @@ function media_upload_form_handler() {
 }
 
 /**
- * {@internal Missing Short Description}}
+ * Handles the process of uploading media.
  *
  * @since 2.5.0
  *
@@ -806,7 +805,9 @@ function wp_media_upload_handler() {
 
 	if ( isset( $_POST['save'] ) ) {
 		$errors['upload_notice'] = __('Saved.');
-		return media_upload_gallery();
+		wp_enqueue_script( 'admin-gallery' );
+ 		return wp_iframe( 'media_upload_gallery_form', $errors );
+
 	} elseif ( ! empty( $_POST ) ) {
 		$return = media_upload_form_handler();
 
@@ -1240,7 +1241,7 @@ function get_attachment_fields_to_edit($post, $errors = null) {
 	}
 
 	// Merge default fields with their errors, so any key passed with the error (e.g. 'error', 'helps', 'value') will replace the default
-	// The recursive merge is easily traversed with array casting: foreach( (array) $things as $thing )
+	// The recursive merge is easily traversed with array casting: foreach ( (array) $things as $thing )
 	$form_fields = array_merge_recursive($form_fields, (array) $errors);
 
 	// This was formerly in image_attachment_fields_to_edit().
@@ -1493,7 +1494,7 @@ function get_media_item( $attachment_id, $args = null ) {
 	}
 	if ( 'image' == $type && $calling_post_id && current_theme_supports( 'post-thumbnails', get_post_type( $calling_post_id ) )
 		&& post_type_supports( get_post_type( $calling_post_id ), 'thumbnail' ) && get_post_thumbnail_id( $calling_post_id ) != $attachment_id ) {
-		
+
 		$calling_post = get_post( $calling_post_id );
 		$calling_post_type_object = get_post_type_object( $calling_post->post_type );
 
@@ -1628,7 +1629,7 @@ function get_compat_media_markup( $attachment_id, $args = null ) {
 	}
 
 	// Merge default fields with their errors, so any key passed with the error (e.g. 'error', 'helps', 'value') will replace the default
-	// The recursive merge is easily traversed with array casting: foreach( (array) $things as $thing )
+	// The recursive merge is easily traversed with array casting: foreach ( (array) $things as $thing )
 	$form_fields = array_merge_recursive($form_fields, (array) $args['errors'] );
 
 	/** This filter is documented in wp-admin/includes/media.php */
@@ -1740,16 +1741,9 @@ function get_compat_media_markup( $attachment_id, $args = null ) {
  * @since 2.5.0
  */
 function media_upload_header() {
-
 	$post_id = isset( $_REQUEST['post_id'] ) ? intval( $_REQUEST['post_id'] ) : 0;
 
-	if ( ! empty( $post_id ) ) { 
-		$post_type = get_post_type( $post_id ); 
-	} else {
-		$post_type = ''; 
-	} 
-
-	echo '<script type="text/javascript">post_id = ' . $post_id . ';post_type = ' . $post_type . ';</script>';
+	echo '<script type="text/javascript">post_id = ' . $post_id . ';</script>';
 	if ( empty( $_GET['chromeless'] ) ) {
 		echo '<div id="media-upload-header">';
 		the_media_upload_tabs();
@@ -3024,7 +3018,7 @@ function wp_read_video_metadata( $file ) {
  * @since 3.6.0
  *
  * @param string $file Path to file.
- * @return array|boolean Returns array of metadata, if found.
+ * @return array|bool Returns array of metadata, if found.
  */
 function wp_read_audio_metadata( $file ) {
 	if ( ! file_exists( $file ) )

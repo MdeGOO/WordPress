@@ -44,8 +44,13 @@ if ( empty($option_page) ) {
 	$capability = apply_filters( "option_page_capability_{$option_page}", $capability );
 }
 
-if ( !current_user_can( $capability ) )
-	wp_die( __( 'Cheatin&#8217; uh?' ), 403 );
+if ( ! current_user_can( $capability ) ) {
+	wp_die(
+		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
+		'<p>' . __( 'You are not allowed to manage these items.' ) . '</p>',
+		403
+	);
+}
 
 // Handle admin email change requests
 if ( is_multisite() ) {
@@ -68,8 +73,13 @@ if ( is_multisite() ) {
 	}
 }
 
-if ( is_multisite() && !is_super_admin() && 'update' != $action )
-	wp_die( __( 'Cheatin&#8217; uh?' ), 403 );
+if ( is_multisite() && ! is_super_admin() && 'update' != $action ) {
+	wp_die(
+		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
+		'<p>' . __( 'You are not allowed to delete these items.' ) . '</p>',
+		403
+	);
+}
 
 $whitelist_options = array(
 	'general' => array( 'blogname', 'blogdescription', 'gmt_offset', 'date_format', 'time_format', 'start_of_week', 'timezone_string', 'WPLANG' ),
@@ -226,7 +236,7 @@ if ( 'update' == $action ) {
 include( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 
 <div class="wrap">
-  <h2><?php esc_html_e('All Settings'); ?></h2>
+  <h1><?php esc_html_e( 'All Settings' ); ?></h1>
   <form name="form" action="options.php" method="post" id="all-options">
   <?php wp_nonce_field('options-options') ?>
   <input type="hidden" name="action" value="update" />

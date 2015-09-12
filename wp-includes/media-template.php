@@ -50,7 +50,7 @@ function wp_underscore_audio_template() {
 function wp_underscore_video_template() {
 	$video_types = wp_get_video_extensions();
 ?>
-<#  var w_rule = h_rule = '', classes = [],
+<#  var w_rule = '', classes = [],
 		w, h, settings = wp.media.view.settings,
 		isYouTube = isVimeo = false;
 
@@ -69,13 +69,10 @@ function wp_underscore_video_template() {
 		h = Math.ceil( ( data.model.height * w ) / data.model.width );
 	} else {
 		h = data.model.height;
-	}
+ 	}
 
 	if ( w ) {
 		w_rule = 'width: ' + w + 'px; ';
-	}
-	if ( h ) {
-		h_rule = 'height: ' + h + 'px;';
 	}
 
 	if ( isYouTube ) {
@@ -87,7 +84,7 @@ function wp_underscore_video_template() {
 	}
 
 #>
-<div style="{{ w_rule }}{{ h_rule }}" class="wp-video">
+<div style="{{ w_rule }}" class="wp-video">
 <video controls
 	class="wp-video-shortcode {{ classes.join( ' ' ) }}"
 	<# if ( w ) { #>width="{{ w }}"<# } #>
@@ -298,7 +295,7 @@ function wp_print_media_templates() {
 				<# } else if ( 'image' === data.type && data.sizes && data.sizes.full ) { #>
 					<img class="details-image" src="{{ data.sizes.full.url }}" draggable="false" />
 				<# } else if ( -1 === jQuery.inArray( data.type, [ 'audio', 'video' ] ) ) { #>
-					<img class="details-image" src="{{ data.icon }}" class="icon" draggable="false" />
+					<img class="details-image icon" src="{{ data.icon }}" draggable="false" />
 				<# } #>
 
 				<# if ( 'audio' === data.type ) { #>
@@ -308,17 +305,14 @@ function wp_print_media_templates() {
 					</audio>
 				</div>
 				<# } else if ( 'video' === data.type ) {
-					var w_rule = h_rule = '';
+					var w_rule = '';
 					if ( data.width ) {
 						w_rule = 'width: ' + data.width + 'px;';
 					} else if ( wp.media.view.settings.contentWidth ) {
 						w_rule = 'width: ' + wp.media.view.settings.contentWidth + 'px;';
 					}
-					if ( data.height ) {
-						h_rule = 'height: ' + data.height + 'px;';
-					}
 				#>
-				<div style="{{ w_rule }}{{ h_rule }}" class="wp-media-wrapper wp-video">
+				<div style="{{ w_rule }}" class="wp-media-wrapper wp-video">
 					<video controls="controls" class="wp-video-shortcode" preload="metadata"
 						<# if ( data.width ) { #>width="{{ data.width }}"<# } #>
 						<# if ( data.height ) { #>height="{{ data.height }}"<# } #>
@@ -652,7 +646,10 @@ function wp_print_media_templates() {
 					</option>
 					<option value="file">
 				<# } else { #>
-					<option value="file" selected>
+					<option value="none" selected>
+						<?php esc_attr_e('None'); ?>
+					</option>
+					<option value="file">
 				<# } #>
 					<# if ( data.model.canEmbed ) { #>
 						<?php esc_attr_e('Link to Media File'); ?>
@@ -670,9 +667,6 @@ function wp_print_media_templates() {
 				<# if ( 'image' === data.type ) { #>
 					<option value="custom">
 						<?php esc_attr_e('Custom URL'); ?>
-					</option>
-					<option value="none">
-						<?php esc_attr_e('None'); ?>
 					</option>
 				<# } #>
 				</select>
@@ -1005,7 +999,7 @@ function wp_print_media_templates() {
 							</div>
 							<div class="advanced-link">
 								<div class="setting link-target">
-									<label><input type="checkbox" data-setting="linkTargetBlank" value="_blank" <# if ( data.model.linkTargetBlank ) { #>checked="checked"<# } #>><?php _e( 'Open link in a new window/tab' ); ?></label>
+									<label><input type="checkbox" data-setting="linkTargetBlank" value="_blank" <# if ( data.model.linkTargetBlank ) { #>checked="checked"<# } #>><?php _e( 'Open link in a new tab' ); ?></label>
 								</div>
 								<label class="setting link-rel">
 									<span><?php _e('Link Rel'); ?></span>
@@ -1048,7 +1042,7 @@ function wp_print_media_templates() {
 				<label class="setting">
 					<span>SRC</span>
 					<input type="text" disabled="disabled" data-setting="src" value="{{ data.model.src }}" />
-					<button type="button" class="button-link remove-setting"><?php _e( 'Remove' ); ?></button>
+					<button type="button" class="button-link remove-setting"><?php _e( 'Remove audio source' ); ?></button>
 				</label>
 				<# } #>
 				<?php
@@ -1062,7 +1056,7 @@ function wp_print_media_templates() {
 				<label class="setting">
 					<span><?php echo strtoupper( $type ) ?></span>
 					<input type="text" disabled="disabled" data-setting="<?php echo $type ?>" value="{{ data.model.<?php echo $type ?> }}" />
-					<button type="button" class="button-link remove-setting"><?php _e( 'Remove' ); ?></button>
+					<button type="button" class="button-link remove-setting"><?php _e( 'Remove audio source' ); ?></button>
 				</label>
 				<# } #>
 				<?php endforeach ?>
@@ -1131,7 +1125,7 @@ function wp_print_media_templates() {
 				<label class="setting">
 					<span>SRC</span>
 					<input type="text" disabled="disabled" data-setting="src" value="{{ data.model.src }}" />
-					<button type="button" class="button-link remove-setting"><?php _e( 'Remove' ); ?></button>
+					<button type="button" class="button-link remove-setting"><?php _e( 'Remove video source' ); ?></button>
 				</label>
 				<# } #>
 				<?php foreach ( $video_types as $type ):
@@ -1143,7 +1137,7 @@ function wp_print_media_templates() {
 				<label class="setting">
 					<span><?php echo strtoupper( $type ) ?></span>
 					<input type="text" disabled="disabled" data-setting="<?php echo $type ?>" value="{{ data.model.<?php echo $type ?> }}" />
-					<button type="button" class="button-link remove-setting"><?php _e( 'Remove' ); ?></button>
+					<button type="button" class="button-link remove-setting"><?php _e( 'Remove video source' ); ?></button>
 				</label>
 				<# } #>
 				<?php endforeach ?>
@@ -1164,7 +1158,7 @@ function wp_print_media_templates() {
 				<label class="setting">
 					<span><?php _e( 'Poster Image' ); ?></span>
 					<input type="text" disabled="disabled" data-setting="poster" value="{{ data.model.poster }}" />
-					<button type="button" class="button-link remove-setting"><?php _e( 'Remove' ); ?></button>
+					<button type="button" class="button-link remove-setting"><?php _e( 'Remove poster image' ); ?></button>
 				</label>
 				<# } #>
 				<div class="setting preload">
@@ -1196,7 +1190,7 @@ function wp_print_media_templates() {
 							content += track.outerHTML; #>
 						<p>
 							<input class="content-track" type="text" value="{{ track.outerHTML }}" />
-							<button type="button" class="button-link remove-setting remove-track"><?php _ex( 'Remove', 'media' ); ?></button>
+							<button type="button" class="button-link remove-setting remove-track"><?php _ex( 'Remove video track', 'media' ); ?></button>
 						</p>
 						<# } ); #>
 					<# } else { #>
@@ -1241,6 +1235,24 @@ function wp_print_media_templates() {
 	<script type="text/html" id="tmpl-crop-content">
 		<img class="crop-image" src="{{ data.url }}">
 		<div class="upload-errors"></div>
+	</script>
+
+	<script type="text/html" id="tmpl-site-icon-preview">
+		<h2><?php _e( 'Preview' ); ?></h2>
+		<strong><?php _e( 'As a browser icon' ); ?></strong>
+		<div class="favicon-preview">
+			<img src="images/browser.png" class="browser-preview" width="182" height="" alt=""/>
+
+			<div class="favicon">
+				<img id="preview-favicon" src="{{ data.url }}" alt="<?php esc_attr_e( 'Preview as a browser icon' ); ?>"/>
+			</div>
+			<span class="browser-title"><?php bloginfo( 'name' ); ?></span>
+		</div>
+
+		<strong><?php _e( 'As an app icon' ); ?></strong>
+		<div class="app-icon-preview">
+			<img id="preview-app-icon" src="{{ data.url }}" alt="<?php esc_attr_e( 'Preview as an app icon' ); ?>"/>
+		</div>
 	</script>
 
 	<?php

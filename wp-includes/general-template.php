@@ -518,8 +518,10 @@ function wp_register( $before = '<li>', $after = '</li>', $echo = true ) {
 			$link = $before . '<a href="' . esc_url( wp_registration_url() ) . '">' . __('Register') . '</a>' . $after;
 		else
 			$link = '';
-	} else {
+	} elseif ( current_user_can( 'read' ) ) {
 		$link = $before . '<a href="' . admin_url() . '">' . __('Site Admin') . '</a>' . $after;
+	} else {
+		$link = '';
 	}
 
 	/**
@@ -719,6 +721,57 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
 	}
 
 	return $output;
+}
+
+/**
+ * Returns the Site Icon URL.
+ *
+ * @param  int    $size    Size of the site icon.
+ * @param  string $url     Fallback url if no site icon is found.
+ * @param  int    $blog_id Id of the blog to get the site icon for.
+ * @return string          Site Icon URL.
+ */
+function get_site_icon_url( $size = 512, $url = '', $blog_id = 0 ) {
+	if ( $blog_id && is_multisite() ) {
+		$site_icon_id = get_blog_option( $blog_id, 'site_icon' );
+	} else {
+		$site_icon_id = get_option( 'site_icon' );
+	}
+
+	if ( $site_icon_id ) {
+		if ( $size >= 512 ) {
+			$size_data = 'full';
+		} else {
+			$size_data = array( $size, $size );
+		}
+		$url_data = wp_get_attachment_image_src( $site_icon_id, $size_data );
+		if ( $url_data ) {
+			$url = $url_data[0];
+		}
+	}
+
+	return $url;
+}
+
+/**
+ * Displays the Site Icon URL.
+ *
+ * @param  int    $size    Size of the site icon.
+ * @param  string $url     Fallback url if no site icon is found.
+ * @param  int    $blog_id Id of the blog to get the site icon for.
+ */
+function site_icon_url( $size = 512, $url = '', $blog_id = 0 ) {
+	echo esc_url( get_site_icon_url( $size, $url, $blog_id ) );
+}
+
+/**
+ * Whether the site has a Site Icon.
+ *
+ * @param int $blog_id Optional. Blog ID. Default: Current blog.
+ * @return bool
+ */
+function has_site_icon( $blog_id = 0 ) {
+	return (bool) get_site_icon_url( 512, '', $blog_id );
 }
 
 /**
@@ -2255,8 +2308,27 @@ function feed_links( $args = array() ) {
 
 	$args = wp_parse_args( $args, $defaults );
 
-	echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . esc_attr( sprintf( $args['feedtitle'], get_bloginfo('name'), $args['separator'] ) ) . '" href="' . esc_url( get_feed_link() ) . "\" />\n";
-	echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . esc_attr( sprintf( $args['comstitle'], get_bloginfo('name'), $args['separator'] ) ) . '" href="' . esc_url( get_feed_link( 'comments_' . get_default_feed() ) ) . "\" />\n";
+	/**
+	 * Filter whether to display the posts feed link.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param bool $show Whether to display the posts feed link. Default true.
+	 */
+	if ( apply_filters( 'feed_links_show_posts_feed', true ) ) {
+		echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . esc_attr( sprintf( $args['feedtitle'], get_bloginfo( 'name' ), $args['separator'] ) ) . '" href="' . esc_url( get_feed_link() ) . "\" />\n";
+	}
+
+	/**
+	 * Filter whether to display the comments feed link.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param bool $show Whether to display the comments feed link. Default true.
+	 */
+	if ( apply_filters( 'feed_links_show_comments_feed', true ) ) {
+		echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . esc_attr( sprintf( $args['comstitle'], get_bloginfo( 'name' ), $args['separator'] ) ) . '" href="' . esc_url( get_feed_link( 'comments_' . get_default_feed() ) ) . "\" />\n";
+	}
 }
 
 /**
@@ -2383,6 +2455,40 @@ function noindex() {
  */
 function wp_no_robots() {
 	echo "<meta name='robots' content='noindex,follow' />\n";
+}
+
+/**
+ * Display site icon meta tags.
+ *
+ * @since 4.3.0
+ *
+ * @link http://www.whatwg.org/specs/web-apps/current-work/multipage/links.html#rel-icon HTML5 specification link icon.
+ */
+function wp_site_icon() {
+	if ( ! has_site_icon() && ! is_customize_preview() ) {
+		return;
+	}
+
+	$meta_tags = array(
+		sprintf( '<link rel="icon" href="%s" sizes="32x32" />', esc_url( get_site_icon_url( 32 ) ) ),
+		sprintf( '<link rel="icon" href="%s" sizes="192x192" />', esc_url( get_site_icon_url( 192 ) ) ),
+		sprintf( '<link rel="apple-touch-icon-precomposed" href="%s">', esc_url( get_site_icon_url( 180 ) ) ),
+		sprintf( '<meta name="msapplication-TileImage" content="%s">', esc_url( get_site_icon_url( 270 ) ) ),
+	);
+
+	/**
+	 * Filter the site icon meta tags, so Plugins can add their own.
+	 *
+	 * @since 4.3.0
+	 *
+	 * @param array $meta_tags Site Icon meta elements.
+	 */
+	$meta_tags = apply_filters( 'site_icon_meta_tags', $meta_tags );
+	$meta_tags = array_filter( $meta_tags );
+
+	foreach ( $meta_tags as $meta_tag ) {
+		echo "$meta_tag\n";
+	}
 }
 
 /**
@@ -2527,14 +2633,14 @@ function the_search_query() {
 }
 
 /**
- * Get the language attributes for the html tag.
+ * Gets the language attributes for the html tag.
  *
  * Builds up a set of html attributes containing the text direction and language
  * information for the page.
  *
  * @since 4.3.0
  *
- * @param string $doctype Optional. The type of html document (xhtml|html). Default html.
+ * @param string $doctype Optional. The type of html document. Accepts 'xhtml' or 'html'. Default 'html'.
  */
 function get_language_attributes( $doctype = 'html' ) {
 	$attributes = array();
@@ -2565,7 +2671,7 @@ function get_language_attributes( $doctype = 'html' ) {
 }
 
 /**
- * Display the language attributes for the html tag.
+ * Displays the language attributes for the html tag.
  *
  * Builds up a set of html attributes containing the text direction and language
  * information for the page.
@@ -2573,7 +2679,7 @@ function get_language_attributes( $doctype = 'html' ) {
  * @since 2.1.0
  * @since 4.3.0 Converted into a wrapper for get_language_attributes().
  *
- * @param string $doctype Optional. The type of html document (xhtml|html). Default html.
+ * @param string $doctype Optional. The type of html document. Accepts 'xhtml' or 'html'. Default 'html'.
  */
 function language_attributes( $doctype = 'html' ) {
 	echo get_language_attributes( $doctype );

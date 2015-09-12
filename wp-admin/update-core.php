@@ -135,7 +135,7 @@ function dismissed_updates() {
 	<?php
 		echo '<p class="hide-if-no-js"><a id="show-dismissed" href="#">'.__('Show hidden updates').'</a></p>';
 		echo '<ul id="dismissed-updates" class="core-updates dismissed">';
-		foreach( (array) $dismissed as $update) {
+		foreach ( (array) $dismissed as $update) {
 			echo '<li>';
 			list_core_update( $update );
 			echo '</li>';
@@ -159,7 +159,7 @@ function core_upgrade_preamble() {
 	$updates = get_core_updates();
 
 	if ( !isset($updates[0]->response) || 'latest' == $updates[0]->response ) {
-		echo '<h3>';
+		echo '<h2>';
 		_e('You have the latest version of WordPress.');
 
 		if ( wp_http_supports( array( 'ssl' ) ) ) {
@@ -175,15 +175,15 @@ function core_upgrade_preamble() {
 			if ( $should_auto_update )
 				echo ' ' . __( 'Future security updates will be applied automatically.' );
 		}
-		echo '</h3>';
+		echo '</h2>';
 	} else {
 		echo '<div class="notice notice-warning"><p>';
 		_e('<strong>Important:</strong> before updating, please <a href="https://codex.wordpress.org/WordPress_Backups">back up your database and files</a>. For help with updates, visit the <a href="https://codex.wordpress.org/Updating_WordPress">Updating WordPress</a> Codex page.');
 		echo '</p></div>';
 
-		echo '<h3 class="response">';
+		echo '<h2 class="response">';
 		_e( 'An updated version of WordPress is available.' );
-		echo '</h3>';
+		echo '</h2>';
 	}
 
 	if ( isset( $updates[0] ) && $updates[0]->response == 'development' ) {
@@ -197,7 +197,7 @@ function core_upgrade_preamble() {
 	}
 
 	echo '<ul class="core-updates">';
-	foreach( (array) $updates as $update ) {
+	foreach ( (array) $updates as $update ) {
 		echo '<li>';
 		list_core_update( $update );
 		echo '</li>';
@@ -225,7 +225,7 @@ function list_plugin_updates() {
 	require_once(ABSPATH . 'wp-admin/includes/plugin-install.php');
 	$plugins = get_plugin_updates();
 	if ( empty( $plugins ) ) {
-		echo '<h3>' . __( 'Plugins' ) . '</h3>';
+		echo '<h2>' . __( 'Plugins' ) . '</h2>';
 		echo '<p>' . __( 'Your plugins are all up to date.' ) . '</p>';
 		return;
 	}
@@ -237,7 +237,7 @@ function list_plugin_updates() {
 	else
 		$core_update_version = $core_updates[0]->current;
 	?>
-<h3><?php _e( 'Plugins' ); ?></h3>
+<h2><?php _e( 'Plugins' ); ?></h2>
 <p><?php _e( 'The following plugins have new versions available. Check the ones you want to update and then click &#8220;Update Plugins&#8221;.' ); ?></p>
 <form method="post" action="<?php echo esc_url( $form_action ); ?>" name="upgrade-plugins" class="upgrade">
 <?php wp_nonce_field('upgrade-core'); ?>
@@ -245,7 +245,7 @@ function list_plugin_updates() {
 <table class="widefat" id="update-plugins-table">
 	<thead>
 	<tr>
-		<th scope="col" class="manage-column check-column"><input type="checkbox" id="plugins-select-all" /></th>
+		<td scope="col" class="manage-column check-column"><input type="checkbox" id="plugins-select-all" /></td>
 		<th scope="col" class="manage-column"><label for="plugins-select-all"><?php _e('Select All'); ?></label></th>
 	</tr>
 	</thead>
@@ -284,8 +284,8 @@ function list_plugin_updates() {
 		}
 
 		$details_url = self_admin_url('plugin-install.php?tab=plugin-information&plugin=' . $plugin_data->update->slug . '&section=changelog&TB_iframe=true&width=640&height=662');
-		$details_text = sprintf(__('View version %1$s details'), $plugin_data->update->new_version);
-		$details = sprintf('<a href="%1$s" class="thickbox" title="%2$s">%3$s</a>.', esc_url($details_url), esc_attr($plugin_data->Name), $details_text);
+		$details_text = sprintf(__('View version %1$s details.'), $plugin_data->update->new_version);
+		$details = sprintf('<a href="%1$s" class="thickbox" title="%2$s">%3$s</a>', esc_url($details_url), esc_attr($plugin_data->Name), $details_text);
 
 		echo "
 	<tr>
@@ -298,7 +298,7 @@ function list_plugin_updates() {
 
 	<tfoot>
 	<tr>
-		<th scope="col" class="manage-column check-column"><input type="checkbox" id="plugins-select-all-2" /></th>
+		<td scope="col" class="manage-column check-column"><input type="checkbox" id="plugins-select-all-2" /></td>
 		<th scope="col" class="manage-column"><label for="plugins-select-all-2"><?php _e( 'Select All' ); ?></label></th>
 	</tr>
 	</tfoot>
@@ -314,14 +314,14 @@ function list_plugin_updates() {
 function list_theme_updates() {
 	$themes = get_theme_updates();
 	if ( empty( $themes ) ) {
-		echo '<h3>' . __( 'Themes' ) . '</h3>';
+		echo '<h2>' . __( 'Themes' ) . '</h2>';
 		echo '<p>' . __( 'Your themes are all up to date.' ) . '</p>';
 		return;
 	}
 
 	$form_action = 'update-core.php?action=do-theme-upgrade';
 ?>
-<h3><?php _e( 'Themes' ); ?></h3>
+<h2><?php _e( 'Themes' ); ?></h2>
 <p><?php _e( 'The following themes have new versions available. Check the ones you want to update and then click &#8220;Update Themes&#8221;.' ); ?></p>
 <p><?php printf( __( '<strong>Please Note:</strong> Any customizations you have made to theme files will be lost. Please consider using <a href="%s">child themes</a> for modifications.' ), __( 'https://codex.wordpress.org/Child_Themes' ) ); ?></p>
 <form method="post" action="<?php echo esc_url( $form_action ); ?>" name="upgrade-themes" class="upgrade">
@@ -330,7 +330,7 @@ function list_theme_updates() {
 <table class="widefat" id="update-themes-table">
 	<thead>
 	<tr>
-		<th scope="col" class="manage-column check-column"><input type="checkbox" id="themes-select-all" /></th>
+		<td scope="col" class="manage-column check-column"><input type="checkbox" id="themes-select-all" /></td>
 		<th scope="col" class="manage-column"><label for="themes-select-all"><?php _e('Select All'); ?></label></th>
 	</tr>
 	</thead>
@@ -349,7 +349,7 @@ function list_theme_updates() {
 
 	<tfoot>
 	<tr>
-		<th scope="col" class="manage-column check-column"><input type="checkbox" id="themes-select-all-2" /></th>
+		<td scope="col" class="manage-column check-column"><input type="checkbox" id="themes-select-all-2" /></td>
 		<th scope="col" class="manage-column"><label for="themes-select-all-2"><?php _e( 'Select All' ); ?></label></th>
 	</tr>
 	</tfoot>
@@ -366,7 +366,7 @@ function list_translation_updates() {
 	$updates = wp_get_translation_updates();
 	if ( ! $updates ) {
 		if ( 'en_US' != get_locale() ) {
-			echo '<h3>' . __( 'Translations' ) . '</h3>';
+			echo '<h2>' . __( 'Translations' ) . '</h2>';
 			echo '<p>' . __( 'Your translations are all up to date.' ) . '</p>';
 		}
 		return;
@@ -374,7 +374,7 @@ function list_translation_updates() {
 
 	$form_action = 'update-core.php?action=do-translation-upgrade';
 	?>
-	<h3><?php _e( 'Translations' ); ?></h3>
+	<h2><?php _e( 'Translations' ); ?></h2>
 	<form method="post" action="<?php echo esc_url( $form_action ); ?>" name="upgrade-translations" class="upgrade">
 		<p><?php _e( 'New translations are available.' ); ?></p>
 		<?php wp_nonce_field( 'upgrade-translations' ); ?>
@@ -415,7 +415,7 @@ function do_core_upgrade( $reinstall = false ) {
 
 ?>
 	<div class="wrap">
-	<h2><?php _e('Update WordPress'); ?></h2>
+	<h1><?php _e( 'Update WordPress' ); ?></h1>
 <?php
 
 	if ( false === ( $credentials = request_filesystem_credentials( $url, '', false, ABSPATH, array( 'version', 'locale' ), $allow_relaxed_file_ownership ) ) ) {
@@ -506,7 +506,7 @@ if ( ( 'do-theme-upgrade' == $action || ( 'do-plugin-upgrade' == $action && ! is
 $title = __('WordPress Updates');
 $parent_file = 'index.php';
 
-$updates_overview  = '<p>' . __( 'On this screen, you can update to the latest version of WordPress, as well as update your themes and plugins from the WordPress.org repositories.' ) . '</p>';
+$updates_overview  = '<p>' . __( 'On this screen, you can update to the latest version of WordPress, as well as update your themes, plugins, and translations from the WordPress.org repositories.' ) . '</p>';
 $updates_overview .= '<p>' . __( 'If an update is available, you&#8127;ll see a notification appear in the Toolbar and navigation menu.' ) . ' ' . __( 'Keeping your site updated is important for security. It also makes the internet a safer place for you and your readers.' ) . '</p>';
 
 get_current_screen()->add_help_tab( array(
@@ -542,7 +542,7 @@ if ( 'upgrade-core' == $action ) {
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	?>
 	<div class="wrap">
-	<h2><?php _e('WordPress Updates'); ?></h2>
+	<h1><?php _e( 'WordPress Updates' ); ?></h1>
 	<?php
 	if ( $upgrade_error ) {
 		echo '<div class="error"><p>';
@@ -624,7 +624,7 @@ if ( 'upgrade-core' == $action ) {
 
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	echo '<div class="wrap">';
-	echo '<h2>' . esc_html__('Update Plugins') . '</h2>';
+	echo '<h1>' . __( 'Update Plugins' ) . '</h1>';
 	echo '<iframe src="', $url, '" style="width: 100%; height: 100%; min-height: 750px;" frameborder="0"></iframe>';
 	echo '</div>';
 	include(ABSPATH . 'wp-admin/admin-footer.php');
@@ -653,7 +653,7 @@ if ( 'upgrade-core' == $action ) {
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	?>
 	<div class="wrap">
-		<h2><?php echo esc_html__('Update Themes') ?></h2>
+		<h1><?php _e( 'Update Themes' ); ?></h1>
 		<iframe src="<?php echo $url ?>" style="width: 100%; height: 100%; min-height: 750px;" frameborder="0"></iframe>
 	</div>
 	<?php

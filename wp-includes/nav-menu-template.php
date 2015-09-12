@@ -230,11 +230,6 @@ function wp_nav_menu( $args = array() ) {
 	'echo' => true, 'fallback_cb' => 'wp_page_menu', 'before' => '', 'after' => '', 'link_before' => '', 'link_after' => '', 'items_wrap' => '<ul id="%1$s" class="%2$s">%3$s</ul>',
 	'depth' => 0, 'walker' => '', 'theme_location' => '' );
 
-	// Prevent a fallback_cb in Customizer Preview to assist with has_nav_menu() and partial refresh.
-	if ( is_customize_preview() ) {
-		$defaults['fallback_cb'] = '';
-	}
-
 	$args = wp_parse_args( $args, $defaults );
 	/**
 	 * Filter the arguments used to display a navigation menu.
@@ -308,7 +303,7 @@ function wp_nav_menu( $args = array() ) {
 	 *  - Otherwise, bail.
 	 */
 	if ( ( !$menu || is_wp_error($menu) || ( isset($menu_items) && empty($menu_items) && !$args->theme_location ) )
-		&& $args->fallback_cb && is_callable( $args->fallback_cb ) )
+		&& isset( $args->fallback_cb ) && $args->fallback_cb && is_callable( $args->fallback_cb ) )
 			return call_user_func( $args->fallback_cb, (array) $args );
 
 	if ( ! $menu || is_wp_error( $menu ) )
@@ -558,11 +553,11 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 			$active_object = $menu_item->object;
 
 		// if the menu item corresponds to the currently-requested URL
-		} elseif ( 'custom' == $menu_item->object ) {
+		} elseif ( 'custom' == $menu_item->object && isset( $_SERVER['HTTP_HOST'] ) ) {
 			$_root_relative_current = untrailingslashit( $_SERVER['REQUEST_URI'] );
 			$current_url = set_url_scheme( 'http://' . $_SERVER['HTTP_HOST'] . $_root_relative_current );
 			$raw_item_url = strpos( $menu_item->url, '#' ) ? substr( $menu_item->url, 0, strpos( $menu_item->url, '#' ) ) : $menu_item->url;
-			$item_url = untrailingslashit( $raw_item_url );
+			$item_url = set_url_scheme( untrailingslashit( $raw_item_url ) );
 			$_indexless_current = untrailingslashit( preg_replace( '/' . preg_quote( $wp_rewrite->index, '/' ) . '$/', '', $current_url ) );
 
 			if ( $raw_item_url && in_array( $item_url, array( $current_url, $_indexless_current, $_root_relative_current ) ) ) {

@@ -251,6 +251,11 @@ final class _WP_Editors {
 			'<textarea' . $editor_class . $height . $tabindex . $autocomplete . ' cols="40" name="' . esc_attr( $set['textarea_name'] ) . '" ' .
 			'id="' . $editor_id_attr . '">%s</textarea></div>' );
 
+		// Prepare the content for the Visual or Text editor
+		if ( self::$this_tinymce ) {
+			add_filter( 'the_editor_content', 'format_for_editor', 10, 2 );
+		}
+
 		/**
 		 * Filter the default editor content.
 		 *
@@ -270,6 +275,10 @@ final class _WP_Editors {
 			$content = apply_filters( 'richedit_pre', $content );
 		}
 
+		if ( false !== stripos( $content, 'textarea' ) ) {
+			$content = preg_replace( '%</textarea%i', '&lt;/textarea', $content );
+		}
+
 		printf( $the_editor, $content );
 		echo "\n</div>\n\n";
 
@@ -287,8 +296,6 @@ final class _WP_Editors {
 	 */
 	public static function editor_settings($editor_id, $set) {
 		global $wp_version, $tinymce_version;
-
-		$first_run = false;
 
 		if ( empty(self::$first_init) ) {
 			if ( is_admin() ) {
@@ -342,7 +349,6 @@ final class _WP_Editors {
 
 				/** This filter is documented in wp-admin/includes/media.php */
 				$no_captions = (bool) apply_filters( 'disable_captions', '' );
-				$first_run = true;
 				$ext_plugins = '';
 
 				if ( $set['teeny'] ) {
@@ -587,10 +593,12 @@ final class _WP_Editors {
 			} else {
 				$mce_buttons = array( 'bold', 'italic', 'strikethrough', 'bullist', 'numlist', 'blockquote', 'hr', 'alignleft', 'aligncenter', 'alignright', 'link', 'unlink', 'wp_more', 'spellchecker' );
 
-				if ( $set['_content_editor_dfw'] ) {
-					$mce_buttons[] = 'dfw';
-				} else {
-					$mce_buttons[] = 'fullscreen';
+				if ( ! wp_is_mobile() ) {
+					if ( $set['_content_editor_dfw'] ) {
+						$mce_buttons[] = 'dfw';
+					} else {
+						$mce_buttons[] = 'fullscreen';
+					}
 				}
 
 				$mce_buttons[] = 'wp_adv';
@@ -752,8 +760,6 @@ final class _WP_Editors {
 	 * @static
 	 */
 	public static function enqueue_scripts() {
-		wp_enqueue_script('word-count');
-
 		if ( self::$has_tinymce )
 			wp_enqueue_script('editor');
 
@@ -819,6 +825,7 @@ final class _WP_Editors {
 			'Blockquote' => __( 'Blockquote' ),
 			'Div' => _x( 'Div', 'HTML tag' ),
 			'Pre' => _x( 'Pre', 'HTML tag' ),
+			'Preformatted' => _x( 'Preformatted', 'HTML tag' ),
 			'Address' => _x( 'Address', 'HTML tag' ),
 
 			'Inline' => _x( 'Inline', 'HTML elements' ),
@@ -919,7 +926,7 @@ final class _WP_Editors {
 
 			'Color' => __( 'Color' ),
 			'Custom color' => __( 'Custom color' ),
-			'Custom...' => _x( 'Custom...', 'label for custom color' ),
+			'Custom\u2026' => _x( 'Custom\u2026', 'label for custom color' ),
 			'No color' => __( 'No color' ),
 
 			// Spelling, search/replace plugins
@@ -1021,7 +1028,7 @@ final class _WP_Editors {
 			'Toolbar Toggle' => __( 'Toolbar Toggle' ),
 			'Insert Read More tag' => __( 'Insert Read More tag' ),
 			'Insert Page Break tag' => __( 'Insert Page Break tag' ),
-			'Read more...' => __( 'Read more...' ), // Title on the placeholder inside the editor
+			'Read more\u2026' => __( 'Read more\u2026' ), // Title on the placeholder inside the editor
 			'Distraction-free writing mode' => __( 'Distraction-free writing mode' ),
 			'No alignment' => __( 'No alignment' ), // Tooltip for the 'alignnone' button in the image toolbar
 			'Remove' => __( 'Remove' ), // Tooltip for the 'remove' button in the image toolbar
@@ -1042,6 +1049,12 @@ final class _WP_Editors {
 			'Ctrl + letter:' => __( 'Ctrl + letter:' ),
 			'Letter' => __( 'Letter' ),
 			'Action' => __( 'Action' ),
+			'To move focus to other buttons use Tab or the arrow keys. To return focus to the editor press Escape or use one of the buttons.' =>
+				__( 'To move focus to other buttons use Tab or the arrow keys. To return focus to the editor press Escape or use one of the buttons.' ),
+			'When starting a new paragraph with one of these formatting shortcuts followed by a space, the formatting will be applied automatically. Press Backspace or Escape to undo.' =>
+				__( 'When starting a new paragraph with one of these formatting shortcuts followed by a space, the formatting will be applied automatically. Press Backspace or Escape to undo.' ),
+			'The following formatting shortcuts are replaced when pressing Enter. Press Escape or the Undo button to undo.' =>
+				__( 'The following formatting shortcuts are replaced when pressing Enter. Press Escape or the Undo button to undo.' ),
 		);
 
 		/**
@@ -1396,7 +1409,7 @@ final class _WP_Editors {
 					<label><span><?php _e( 'Link Text' ); ?></span><input id="wp-link-text" type="text" /></label>
 				</div>
 				<div class="link-target">
-					<label><span>&nbsp;</span><input type="checkbox" id="wp-link-target" /> <?php _e( 'Open link in a new window/tab' ); ?></label>
+					<label><span>&nbsp;</span><input type="checkbox" id="wp-link-target" /> <?php _e( 'Open link in a new tab' ); ?></label>
 				</div>
 			</div>
 			<p class="howto"><a href="#" id="wp-link-search-toggle"><?php _e( 'Or link to existing content' ); ?></a></p>

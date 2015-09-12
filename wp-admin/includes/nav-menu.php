@@ -162,7 +162,7 @@ class Walker_Nav_Menu_Edit extends Walker_Nav_Menu {
 				<p class="field-link-target description">
 					<label for="edit-menu-item-target-<?php echo $item_id; ?>">
 						<input type="checkbox" id="edit-menu-item-target-<?php echo $item_id; ?>" value="_blank" name="menu-item-target[<?php echo $item_id; ?>]"<?php checked( $item->target, '_blank' ); ?> />
-						<?php _e( 'Open link in a new window/tab' ); ?>
+						<?php _e( 'Open link in a new tab' ); ?>
 					</label>
 				</p>
 				<p class="field-css-classes description description-thin">
@@ -426,7 +426,7 @@ function _wp_ajax_menu_quick_search( $request = array() ) {
 			));
 			if ( empty( $terms ) || is_wp_error( $terms ) )
 				return;
-			foreach( (array) $terms as $term ) {
+			foreach ( (array) $terms as $term ) {
 				if ( 'markup' == $response_format ) {
 					echo walk_nav_menu_tree( array_map('wp_setup_nav_menu_item', array( $term ) ), 0, (object) $args );
 				} elseif ( 'json' == $response_format ) {
@@ -732,6 +732,8 @@ function wp_nav_menu_item_post_type_meta_box( $object, $post_type ) {
 				/**
 				 * Filter the posts displayed in the 'Most Recent' tab of the current
 				 * post type's menu items meta box.
+				 *
+				 * The dynamic portion of the hook name, `$post_type_name`, refers to the post type name.
 				 *
 				 * @since 4.3.0
 				 *
@@ -1079,7 +1081,7 @@ function wp_save_nav_menu_items( $menu_id = 0, $menu_data = array() ) {
 	if ( 0 == $menu_id || is_nav_menu( $menu_id ) ) {
 
 		// Loop through all the menu items' POST values.
-		foreach( (array) $menu_data as $_possible_db_id => $_item_object_data ) {
+		foreach ( (array) $menu_data as $_possible_db_id => $_item_object_data ) {
 			if (
 				// Checkbox is not checked.
 				empty( $_item_object_data['menu-item-object-id'] ) &&
@@ -1212,7 +1214,7 @@ function wp_get_nav_menu_to_edit( $menu_id = 0 ) {
 			return new WP_Error( 'menu_walker_not_exist', sprintf( __('The Walker class named <strong>%s</strong> does not exist.'), $walker_class_name ) );
 
 		$some_pending_menu_items = $some_invalid_menu_items = false;
-		foreach( (array) $menu_items as $menu_item ) {
+		foreach ( (array) $menu_items as $menu_item ) {
 			if ( isset( $menu_item->post_status ) && 'draft' == $menu_item->post_status )
 				$some_pending_menu_items = true;
 			if ( ! empty( $menu_item->_invalid ) )
@@ -1269,7 +1271,7 @@ function _wp_delete_orphaned_draft_menu_items() {
 	// Delete orphaned draft menu items.
 	$menu_items_to_delete = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts AS p LEFT JOIN $wpdb->postmeta AS m ON p.ID = m.post_id WHERE post_type = 'nav_menu_item' AND post_status = 'draft' AND meta_key = '_menu_item_orphaned' AND meta_value < '%d'", $delete_timestamp ) );
 
-	foreach( (array) $menu_items_to_delete as $menu_item_id )
+	foreach ( (array) $menu_items_to_delete as $menu_item_id )
 		wp_delete_post( $menu_item_id, true );
 }
 
@@ -1300,7 +1302,7 @@ function wp_nav_menu_update_menu_items ( $nav_menu_selected_id, $nav_menu_select
 	wp_defer_term_counting( true );
 	// Loop through all the menu items' POST variables
 	if ( ! empty( $_POST['menu-item-db-id'] ) ) {
-		foreach( (array) $_POST['menu-item-db-id'] as $_key => $k ) {
+		foreach ( (array) $_POST['menu-item-db-id'] as $_key => $k ) {
 
 			// Menu item title can't be blank
 			if ( ! isset( $_POST['menu-item-title'][ $_key ] ) || '' == $_POST['menu-item-title'][ $_key ] )

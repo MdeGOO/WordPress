@@ -146,8 +146,13 @@ class WP_Press_This {
 				}
 			}
 
+			$forceRedirect = false;
+
 			if ( 'publish' === get_post_status( $post_id ) ) {
 				$redirect = get_post_permalink( $post_id );
+			} elseif ( isset( $_POST['pt-force-redirect'] ) && $_POST['pt-force-redirect'] === 'true' ) {
+				$forceRedirect = true;
+				$redirect = get_edit_post_link( $post_id, 'js' );
 			} else {
 				$redirect = false;
 			}
@@ -165,7 +170,7 @@ class WP_Press_This {
 			$redirect = apply_filters( 'press_this_save_redirect', $redirect, $post_id, $post['post_status'] );
 
 			if ( $redirect ) {
-				wp_send_json_success( array( 'redirect' => $redirect ) );
+				wp_send_json_success( array( 'redirect' => $redirect, 'force' => $forceRedirect ) );
 			} else {
 				wp_send_json_success( array( 'postSaved' => true ) );
 			}
@@ -251,45 +256,45 @@ class WP_Press_This {
 	 * @return string Source's HTML sanitized markup
 	 */
 	public function fetch_source_html( $url ) {
-		// Download source page to tmp file.
-		$source_tmp_file = ( ! empty( $url ) ) ? download_url( $url, 30 ) : '';
-		$source_content  = '';
+		global $wp_version;
 
-		if ( ! is_wp_error( $source_tmp_file ) && file_exists( $source_tmp_file ) ) {
-
-			// Get the content of the source page from the tmp file..
-			$source_content = wp_kses(
-				@file_get_contents( $source_tmp_file ),
-				array(
-					'img' => array(
-						'src'      => array(),
-						'width'    => array(),
-						'height'   => array(),
-					),
-					'iframe' => array(
-						'src'      => array(),
-					),
-					'link' => array(
-						'rel'      => array(),
-						'itemprop' => array(),
-						'href'     => array(),
-					),
-					'meta' => array(
-						'property' => array(),
-						'name'     => array(),
-						'content'  => array(),
-					)
-				)
-			);
-
-			// All done with backward compatibility. Let's do some cleanup, for good measure :)
-			unlink( $source_tmp_file );
-
-		} else if ( is_wp_error( $source_tmp_file ) ) {
-			$source_content = new WP_Error( 'upload-error',  sprintf( __( 'ERROR: %s' ), sprintf( __( 'Could not download the source URL (native error: %s).' ), $source_tmp_file->get_error_message() ) ) );
-		} else if ( ! file_exists( $source_tmp_file ) ) {
-			$source_content = new WP_Error( 'no-local-file',  sprintf( __( 'ERROR: %s' ), __( 'Could not save or locate the temporary download file for the source URL.' ) ) );
+		if ( empty( $url ) ) {
+			return new WP_Error( 'invalid-url', __( 'A valid URL was not provided.' ) );
 		}
+
+		$remote_url = wp_safe_remote_get( $url, array(
+			'timeout' => 30,
+			// Use an explicit user-agent for Press This
+			'user-agent' => 'Press This (WordPress/' . $wp_version . '); ' . get_bloginfo( 'url' )
+		) );
+
+		if ( is_wp_error( $remote_url ) ) {
+			return $remote_url;
+		}
+
+		$useful_html_elements = array(
+			'img' => array(
+				'src'      => true,
+				'width'    => true,
+				'height'   => true,
+			),
+			'iframe' => array(
+				'src'      => true,
+			),
+			'link' => array(
+				'rel'      => true,
+				'itemprop' => true,
+				'href'     => true,
+			),
+			'meta' => array(
+				'property' => true,
+				'name'     => true,
+				'content'  => true,
+			)
+		);
+
+		$source_content = wp_remote_retrieve_body( $remote_url );
+		$source_content = wp_kses( $source_content, $useful_html_elements );
 
 		return $source_content;
 	}
@@ -778,7 +783,36 @@ class WP_Press_This {
 			$press_this = str_replace( '.css', '-rtl.css', $press_this );
 		}
 
-		return $styles . $press_this;
+		$open_sans_font_url = '';
+
+		/* translators: If there are characters in your language that are not supported
+		 * by Open Sans, translate this to 'off'. Do not translate into your own language.
+		 */
+		if ( 'off' !== _x( 'on', 'Open Sans font: on or off' ) ) {
+			$subsets = 'latin,latin-ext';
+
+			/* translators: To add an additional Open Sans character subset specific to your language,
+			 * translate this to 'greek', 'cyrillic' or 'vietnamese'. Do not translate into your own language.
+			 */
+			$subset = _x( 'no-subset', 'Open Sans font: add new subset (greek, cyrillic, vietnamese)' );
+
+			if ( 'cyrillic' == $subset ) {
+				$subsets .= ',cyrillic,cyrillic-ext';
+			} elseif ( 'greek' == $subset ) {
+				$subsets .= ',greek,greek-ext';
+			} elseif ( 'vietnamese' == $subset ) {
+				$subsets .= ',vietnamese';
+			}
+
+			$query_args = array(
+				'family' => urlencode( 'Open Sans:400italic,700italic,400,600,700' ),
+				'subset' => urlencode( $subsets ),
+			);
+
+			$open_sans_font_url = ',' . add_query_arg( $query_args, 'https://fonts.googleapis.com/css' );
+		}
+
+		return $styles . $press_this . $open_sans_font_url;
 	}
 
 	/**
@@ -939,7 +973,7 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param array $data The site's data.
-	 * @returns array Embeds selected to be available.
+	 * @return array Embeds selected to be available.
 	 */
 	public function get_embeds( $data ) {
 		$selected_embeds = array();
@@ -950,7 +984,7 @@ class WP_Press_This {
 		}
 
 		if ( ! empty( $data['_embeds'] ) ) {
-			foreach( $data['_embeds'] as $src ) {
+			foreach ( $data['_embeds'] as $src ) {
 				$prot_relative_src = preg_replace( '/^https?:/', '', $src );
 
 				if ( in_array( $prot_relative_src, $this->embeds ) ) {
@@ -972,13 +1006,13 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param array $data The site's data.
-	 * @returns array
+	 * @return array
 	 */
 	public function get_images( $data ) {
 		$selected_images = array();
 
 		if ( ! empty( $data['_images'] ) ) {
-			foreach( $data['_images'] as $src ) {
+			foreach ( $data['_images'] as $src ) {
 				if ( false !== strpos( $src, 'gravatar.com' ) ) {
 					$src = preg_replace( '%http://[\d]+\.gravatar\.com/%', 'https://secure.gravatar.com/', $src );
 				}
@@ -1006,7 +1040,7 @@ class WP_Press_This {
 	 * @access public
 	 *
  	 * @param array $data The site's data.
-	 * @returns string Discovered canonical URL, or empty
+	 * @return string Discovered canonical URL, or empty
 	 */
 	public function get_canonical_link( $data ) {
 		$link = '';
@@ -1037,7 +1071,7 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param array $data The site's data.
-	 * @returns string Discovered site name, or empty
+	 * @return string Discovered site name, or empty
 	 */
 	public function get_source_site_name( $data ) {
 		$name = '';
@@ -1060,7 +1094,7 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param array $data The site's data.
-	 * @returns string Discovered page title, or empty
+	 * @return string Discovered page title, or empty
 	 */
 	public function get_suggested_title( $data ) {
 		$title = '';
@@ -1089,7 +1123,7 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param array $data The site's data.
-	 * @returns string Discovered content, or empty
+	 * @return string Discovered content, or empty
 	 */
 	public function get_suggested_content( $data ) {
 		$content = $text = '';
@@ -1329,6 +1363,7 @@ class WP_Press_This {
 		<input type="hidden" name="post_status" id="post_status" value="draft" />
 		<input type="hidden" name="wp-preview" id="wp-preview" value="" />
 		<input type="hidden" name="post_title" id="post_title" value="" />
+		<input type="hidden" name="pt-force-redirect" id="pt-force-redirect" value="" />
 		<?php
 
 		wp_nonce_field( 'update-post_' . $post_ID, '_wpnonce', false );
@@ -1377,11 +1412,13 @@ class WP_Press_This {
 						'statusbar'             => false,
 						'autoresize_min_height' => 600,
 						'wp_autoresize_on'      => true,
-						'plugins'               => 'lists,media,paste,tabfocus,fullscreen,wordpress,wpautoresize,wpeditimage,wpgallery,wplink,wpview',
+						'plugins'               => 'lists,media,paste,tabfocus,fullscreen,wordpress,wpautoresize,wpeditimage,wpgallery,wplink,wptextpattern,wpview',
 						'toolbar1'              => 'bold,italic,bullist,numlist,blockquote,link,unlink',
 						'toolbar2'              => 'undo,redo',
 					),
-					'quicktags' => false,
+					'quicktags' => array(
+						'buttons' => 'strong,em,link,block,del,ins,img,ul,ol,li,code,more',
+					),
 				) );
 
 				?>
@@ -1456,16 +1493,17 @@ class WP_Press_This {
 			<span class="spinner">&nbsp;</span>
 			<div class="split-button">
 				<div class="split-button-head">
-					<button type="button" class="publish-button split-button-primary"><?php
-						echo ( current_user_can( 'publish_posts' ) ) ? __( 'Publish' ) : __( 'Submit for Review' );
-					?></button><button type="button" class="split-button-toggle" aria-haspopup="true" aria-expanded="false">
+					<button type="button" class="publish-button split-button-primary" aria-live="polite">
+						<span class="publish"><?php echo ( current_user_can( 'publish_posts' ) ) ? __( 'Publish' ) : __( 'Submit for Review' ); ?></span>
+						<span class="saving-draft"><?php _e( 'Saving&hellip;' ); ?></span>
+					</button><button type="button" class="split-button-toggle" aria-haspopup="true" aria-expanded="false">
 						<i class="dashicons dashicons-arrow-down-alt2"></i>
 						<span class="screen-reader-text"><?php _e('More actions'); ?></span>
 					</button>
 				</div>
 				<ul class="split-button-body">
-					<li><button type="button" class="button-subtle draft-button split-button-option" aria-live="polite"><?php _e( 'Save Draft' ); ?></button></li>
-					<li><a href="<?php echo esc_url( get_edit_post_link( $post_ID ) ); ?>" class="edit-post-link split-button-option" target="_blank"><?php _e( 'Standard Editor' ); ?></a></li>
+					<li><button type="button" class="button-subtle draft-button split-button-option"><?php _e( 'Save Draft' ); ?></button></li>
+					<li><button type="button" class="button-subtle standard-editor-button split-button-option"><?php _e( 'Standard Editor' ); ?></button></li>
 					<li><button type="button" class="button-subtle preview-button split-button-option"><?php _e( 'Preview' ); ?></button></li>
 				</ul>
 			</div>

@@ -27,8 +27,8 @@ function delete_theme($stylesheet, $redirect = '') {
 	if ( empty( $redirect ) )
 		$redirect = wp_nonce_url('themes.php?action=delete&stylesheet=' . urlencode( $stylesheet ), 'delete-theme_' . $stylesheet);
 	if ( false === ($credentials = request_filesystem_credentials($redirect)) ) {
-		$data = ob_get_contents();
-		ob_end_clean();
+		$data = ob_get_clean();
+
 		if ( ! empty($data) ){
 			include_once( ABSPATH . 'wp-admin/admin-header.php');
 			echo $data;
@@ -40,8 +40,8 @@ function delete_theme($stylesheet, $redirect = '') {
 
 	if ( ! WP_Filesystem($credentials) ) {
 		request_filesystem_credentials($redirect, '', true); // Failed to connect, Error and request again
-		$data = ob_get_contents();
-		ob_end_clean();
+		$data = ob_get_clean();
+
 		if ( ! empty($data) ) {
 			include_once( ABSPATH . 'wp-admin/admin-header.php');
 			echo $data;
@@ -479,13 +479,6 @@ function wp_prepare_themes_for_js( $themes = null ) {
 			'actions'      => array(
 				'activate' => current_user_can( 'switch_themes' ) ? wp_nonce_url( admin_url( 'themes.php?action=activate&amp;stylesheet=' . $encoded_slug ), 'switch-theme_' . $slug ) : null,
 				'customize' => ( current_user_can( 'edit_theme_options' ) && current_user_can( 'customize' ) ) ? wp_customize_url( $slug ) : null,
-				'preview'   => add_query_arg( array(
-					'preview'        => 1,
-					'template'       => urlencode( $theme->get_template() ),
-					'stylesheet'     => urlencode( $slug ),
-					'preview_iframe' => true,
-					'TB_iframe'      => true,
-				), home_url( '/' ) ),
 				'delete'   => current_user_can( 'delete_themes' ) ? wp_nonce_url( admin_url( 'themes.php?action=delete&amp;stylesheet=' . $encoded_slug ), 'delete-theme_' . $slug ) : null,
 			),
 		);
@@ -540,8 +533,8 @@ function customize_themes_print_templates() {
 					<# if ( data.active ) { #>
 						<span class="current-label"><?php _e( 'Current Theme' ); ?></span>
 					<# } #>
-					<h3 class="theme-name">{{{ data.name }}}<span class="theme-version"><?php printf( __( 'Version: %s' ), '{{ data.version }}' ); ?></span></h3>
-					<h4 class="theme-author"><?php printf( __( 'By %s' ), '{{{ data.authorAndUri }}}' ); ?></h4>
+					<h2 class="theme-name">{{{ data.name }}}<span class="theme-version"><?php printf( __( 'Version: %s' ), '{{ data.version }}' ); ?></span></h2>
+					<h3 class="theme-author"><?php printf( __( 'By %s' ), '{{{ data.authorAndUri }}}' ); ?></h3>
 					<p class="theme-description">{{{ data.description }}}</p>
 
 					<# if ( data.parent ) { #>

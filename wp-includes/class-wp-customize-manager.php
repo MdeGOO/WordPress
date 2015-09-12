@@ -38,7 +38,7 @@ final class WP_Customize_Manager {
 	/**
 	 * Whether this is a Customizer pageload.
 	 *
-	 * @var boolean
+	 * @var bool
 	 */
 	protected $previewing = false;
 
@@ -218,13 +218,13 @@ final class WP_Customize_Manager {
 		if ( is_admin() && ! $doing_ajax_or_is_customized ) {
 			auth_redirect();
 		} elseif ( $doing_ajax_or_is_customized && ! is_user_logged_in() ) {
-			$this->wp_die( 0 );
+			$this->wp_die( 0, __( 'You must be logged in to complete this action.' ) );
 		}
 
 		show_admin_bar( false );
 
 		if ( ! current_user_can( 'customize' ) ) {
-			$this->wp_die( -1 );
+			$this->wp_die( -1, __( 'You are not allowed to customize the appearance of this site.' ) );
 		}
 
 		$this->original_stylesheet = get_stylesheet();
@@ -238,17 +238,17 @@ final class WP_Customize_Manager {
 			// If the requested theme is not the active theme and the user doesn't have the
 			// switch_themes cap, bail.
 			if ( ! current_user_can( 'switch_themes' ) ) {
-				$this->wp_die( -1 );
+				$this->wp_die( -1, __( 'You are not allowed to edit theme options on this site.' ) );
 			}
 
 			// If the theme has errors while loading, bail.
 			if ( $this->theme()->errors() ) {
-				$this->wp_die( -1 );
+				$this->wp_die( -1, $this->theme()->errors()->get_error_message() );
 			}
 
 			// If the theme isn't allowed per multisite settings, bail.
 			if ( ! $this->theme()->is_allowed() ) {
-				$this->wp_die( -1 );
+				$this->wp_die( -1, __( 'The requested theme does not exist.' ) );
 			}
 		}
 
@@ -627,7 +627,7 @@ final class WP_Customize_Manager {
 			'activeSections' => array(),
 			'activeControls' => array(),
 			'l10n' => array(
-				'loading'  => __( 'Loading ...' ),
+				'loading'  => __( 'Loading\u2026' ),
 			),
 		);
 
@@ -1009,8 +1009,9 @@ final class WP_Customize_Manager {
 	 * @since 4.3.0
 	 * @access public
 	 *
-	 * @param string $panel Name of a custom panel which is a subclass of
-	 *                        {@see WP_Customize_Panel}.
+	 * @see WP_Customize_Panel
+	 *
+	 * @param string $panel Name of a custom panel which is a subclass of WP_Customize_Panel.
 	 */
 	public function register_panel_type( $panel ) {
 		$this->registered_panel_types[] = $panel;
@@ -1078,8 +1079,9 @@ final class WP_Customize_Manager {
 	 * @since 4.3.0
 	 * @access public
 	 *
-	 * @param string $section Name of a custom section which is a subclass of
-	 *                        {@see WP_Customize_Section}.
+	 * @see WP_Customize_Section
+	 *
+	 * @param string $section Name of a custom section which is a subclass of WP_Customize_Section.
 	 */
 	public function register_section_type( $section ) {
 		$this->registered_section_types[] = $section;
@@ -1278,6 +1280,8 @@ final class WP_Customize_Manager {
 		$this->register_control_type( 'WP_Customize_Upload_Control' );
 		$this->register_control_type( 'WP_Customize_Image_Control' );
 		$this->register_control_type( 'WP_Customize_Background_Image_Control' );
+		$this->register_control_type( 'WP_Customize_Cropped_Image_Control' );
+		$this->register_control_type( 'WP_Customize_Site_Icon_Control' );
 		$this->register_control_type( 'WP_Customize_Theme_Control' );
 
 		/* Themes */
@@ -1324,10 +1328,10 @@ final class WP_Customize_Manager {
 			) ) );
 		}
 
-		/* Site Title & Tagline */
+		/* Site Identity */
 
 		$this->add_section( 'title_tagline', array(
-			'title'    => __( 'Site Title & Tagline' ),
+			'title'    => __( 'Site Identity' ),
 			'priority' => 20,
 		) );
 
@@ -1353,6 +1357,21 @@ final class WP_Customize_Manager {
 			'section'    => 'title_tagline',
 		) );
 
+		$this->add_setting( 'site_icon', array(
+			'type'       => 'option',
+			'capability' => 'manage_options',
+			'transport'  => 'postMessage', // Previewed with JS in the Customizer controls window.
+		) );
+
+		$this->add_control( new WP_Customize_Site_Icon_Control( $this, 'site_icon', array(
+			'label'       => __( 'Site Icon' ),
+			'description' => __( 'The Site Icon is used as a browser and app icon for your site. Icons must be square, and at least 512px wide and tall.' ),
+			'section'     => 'title_tagline',
+			'priority'    => 60,
+			'height'      => 512,
+			'width'       => 512,
+		) ) );
+
 		/* Colors */
 
 		$this->add_section( 'colors', array(
@@ -1375,6 +1394,7 @@ final class WP_Customize_Manager {
 			'label'    => __( 'Display Header Text' ),
 			'section'  => 'title_tagline',
 			'type'     => 'checkbox',
+			'priority' => 40,
 		) );
 
 		$this->add_control( new WP_Customize_Color_Control( $this, 'header_textcolor', array(
